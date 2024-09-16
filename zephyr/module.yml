@@ -1,3 +1,6 @@
 name: pim447
 build:
   cmake: .
+  kconfig: Kcnfig
+  settings:
+    dts_root: .
