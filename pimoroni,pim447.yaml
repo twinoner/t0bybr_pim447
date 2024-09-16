@@ -1,0 +1,35 @@
+description: Pimoroni Trackball
+
+compatible: "pimoroni,pim447"
+
+include: i2c-device.yaml
+
+properties:
+  reg:
+    required: true
+    description: I2C address of the trackball
+
+  interrupt-gpios:
+    type: phandle-array
+    required: true
+    description: Interrupt pin
+
+  led-red-gpios:
+    type: phandle-array
+    required: false
+    description: GPIO for red LED control (optional)
+
+  led-green-gpios:
+    type: phandle-array
+    required: false
+    description: GPIO for green LED control (optional)
+
+  led-blue-gpios:
+    type: phandle-array
+    required: false
+    description: GPIO for blue LED control (optional)
+
+  led-white-gpios:
+    type: phandle-array
+    required: false
+    description: GPIO for white LED control (optional)

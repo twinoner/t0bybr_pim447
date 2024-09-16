@@ -1,0 +1,3 @@
+name: pim447
+build:
+  cmake: .

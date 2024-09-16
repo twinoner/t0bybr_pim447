@@ -1,0 +1,9 @@
+cmake_minimum_required(VERSION 3.13.1)
+find_package(Zephyr REQUIRED HINTS $ENV{ZEPHYR_BASE})
+project(pim447)
+
+if(CONFIG_PIM447)
+    zephyr_include_directories(include)
+    zephyr_library()
+    zephyr_library_sources(src/pim447.c)
+endif()
