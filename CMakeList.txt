@@ -1,0 +1,3 @@
+target_sources_ifdef(CONFIG_ZMK_SENSOR_PIM447 app PRIVATE src/pim447.c)
+
+zephyr_include_directories(include)
