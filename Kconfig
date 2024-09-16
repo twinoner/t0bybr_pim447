@@ -1,6 +1,6 @@
 # 2024 t0bybr
 
-menuconfig ZMK_SENSOR_PIM447
+config ZMK_SENSOR_PIM447
     bool "PIM447 Trackball"
     # default y
     #depends on ZMK_SENSORS && GPIO && I2C
