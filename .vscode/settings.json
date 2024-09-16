@@ -10,5 +10,10 @@
         "statusBarItem.remoteForeground": "#e7e7e7",
         "tab.activeBorder": "#e83ea1"
     },
-    "peacock.color": "#d91a89"
+    "peacock.color": "#d91a89",
+    "files.associations": {
+        "*.embeddedhtml": "html",
+        "*.t3s": "typoscript",
+        "pim447.h": "c"
+    }
 }

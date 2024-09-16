@@ -1,6 +1,6 @@
 #define DT_DRV_COMPAT pimoroni_pim447
 
-#include "./include/pim447.h"
+#include "pim447.h"
 #include <zephyr/drivers/sensor.h>
 #include <zephyr/drivers/i2c.h>
 #include <zephyr/logging/log.h>
