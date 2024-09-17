@@ -3,6 +3,8 @@
 #include <zephyr/device.h>
 #include <zephyr/drivers/sensor.h>
 #include <zephyr/drivers/i2c.h>
+#include <zephyr/input/input.h>
+
 #include <zephyr/logging/log.h>
 
 LOG_MODULE_REGISTER(pimoroni_pim447, CONFIG_SENSOR_LOG_LEVEL);
@@ -41,14 +43,25 @@ static int pimoroni_pim447_sample_fetch(const struct device *dev, enum sensor_ch
     }
 
     // Calculate dx and dy
-    data->dx = (int16_t)buf[1] - (int16_t)buf[0];
-    data->dy = (int16_t)buf[3] - (int16_t)buf[2];
+    int16_t dx = (int16_t)buf[1] - (int16_t)buf[0];
+    int16_t dy = (int16_t)buf[3] - (int16_t)buf[2];
 
     // Update button state
-    data->pressed = (buf[4] & 0x80) != 0;
+    bool pressed = (buf[4] & 0x80) != 0;
+
+    // Log movement if there's any change
+    if (dx != 0 || dy != 0 || pressed != data->pressed) {
+        LOG_INF("Trackball movement: dx=%d, dy=%d, pressed=%d", dx, dy, pressed);
+    }
+
+    // Update data
+    data->dx = dx;
+    data->dy = dy;
+    data->pressed = pressed;
 
     return 0;
 }
+
 
 static int pimoroni_pim447_channel_get(const struct device *dev, enum sensor_channel chan, struct sensor_value *val)
 {
@@ -84,7 +97,6 @@ static int pimoroni_pim447_init(const struct device *dev)
     const struct pimoroni_pim447_config *cfg = dev->config;
 
     LOG_INF("pim447 am Start");
-
 
     if (!device_is_ready(cfg->i2c.bus)) {
         LOG_ERR("I2C bus not ready");
