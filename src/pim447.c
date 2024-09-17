@@ -83,6 +83,9 @@ static int pimoroni_pim447_init(const struct device *dev)
 {
     const struct pimoroni_pim447_config *cfg = dev->config;
 
+    LOG_INF("pim447 am Start");
+
+
     if (!device_is_ready(cfg->i2c.bus)) {
         LOG_ERR("I2C bus not ready");
         return -ENODEV;
