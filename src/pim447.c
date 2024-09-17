@@ -6,6 +6,12 @@
 #include <zephyr/kernel.h>
 #include <zephyr/logging/log.h>
 
+/* Register definitions */
+#define REG_INT        0x0D  // Interrupt enable register
+
+/* Bit masks */
+#define MSK_INT_OUT_EN   0x01  // Mask to enable interrupt output
+
 LOG_MODULE_REGISTER(pim447, CONFIG_SENSOR_LOG_LEVEL);
 
 struct pim447_config {
@@ -23,6 +29,8 @@ struct pim447_data {
 static void pim447_work_handler(struct k_work *work) {
     struct pim447_data *data = CONTAINER_OF(work, struct pim447_data, work);
 
+    LOG_INF("Work handler executed");
+
     /* Log that the trackball movement was detected */
     LOG_INF("Trackball moved");
 }
@@ -32,15 +40,17 @@ static void pim447_gpio_callback(const struct device *port, struct gpio_callback
                                  gpio_port_pins_t pins) {
     struct pim447_data *data = CONTAINER_OF(cb, struct pim447_data, int_gpio_cb);
 
+    LOG_INF("Interrupt detected on GPIO pin");
+
     /* Schedule the work handler to process the movement */
     k_work_submit(&data->work);
 }
 
-/* Initialization function for the PIM447 driver */
 static int pim447_init(const struct device *dev) {
     const struct pim447_config *config = dev->config;
     struct pim447_data *data = dev->data;
     int ret;
+    uint8_t int_reg;
 
     data->dev = dev;
 
@@ -84,11 +94,25 @@ static int pim447_init(const struct device *dev) {
     /* Initialize the work handler */
     k_work_init(&data->work, pim447_work_handler);
 
+    /* Enable interrupt output on the trackball */
+    ret = i2c_reg_read_byte_dt(&config->i2c, REG_INT, &int_reg);
+    if (ret) {
+        LOG_ERR("Failed to read INT register");
+        return ret;
+    }
+    int_reg |= MSK_INT_OUT_EN;
+    ret = i2c_reg_write_byte_dt(&config->i2c, REG_INT, int_reg);
+    if (ret) {
+        LOG_ERR("Failed to enable interrupt output");
+        return ret;
+    }
+
     /* Log that the driver has been initialized */
     LOG_INF("PIM447 driver initialized");
 
     return 0;
 }
+
 
 /* Device configuration */
 static const struct pim447_config pim447_config = {
