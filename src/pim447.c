@@ -7,11 +7,6 @@
 #include <zephyr/logging/log.h>
 
 
-#include <zmk/hid.h>
-// #include <zmk/mouse.h>
-// #include <zmk/endpoints.h>
-
-#define MOUSE_BUTTON_LEFT 0x01
 
 /* Register Addresses */
 #define REG_LED_RED     0x00
@@ -93,29 +88,7 @@ static void pim447_work_handler(struct k_work *work) {
 
     /* Send HID mouse report if there's movement or button state changed */
     if (delta_x || delta_y || sw_pressed != data->sw_pressed_prev) {
-        /* Get the current mouse report */
-        struct zmk_hid_mouse_report *mouse_report = zmk_hid_get_mouse_report();
-
-        /* Update the mouse report */
-        mouse_report->x = delta_x;
-        mouse_report->y = delta_y;
-
-        /* Handle button state */
-        if (sw_pressed) {
-            mouse_report->buttons |= MOUSE_BUTTON_LEFT;
-        } else {
-            mouse_report->buttons &= ~MOUSE_BUTTON_LEFT;
-        }
-
-        /* Send the HID report */
-        int err = zmk_endpoints_send_mouse_report(mouse_report);
-        if (err) {
-            LOG_ERR("Failed to send HID mouse report: %d", err);
-        }
-
-        /* Update previous button state */
-        data->sw_pressed_prev = sw_pressed;
-
+   
         /* Log the movement data */
         LOG_INF("Trackball moved: delta_x=%d, delta_y=%d, sw_pressed=%d", delta_x, delta_y, sw_pressed);
     }
