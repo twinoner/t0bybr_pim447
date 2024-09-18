@@ -6,7 +6,6 @@
 #include <zephyr/kernel.h>
 #include <zephyr/logging/log.h>
 
-
 /* Register Addresses */
 #define REG_LED_RED     0x00
 #define REG_LED_GRN     0x01
@@ -52,14 +51,53 @@ struct pim447_data {
     struct gpio_callback int_gpio_cb;
 };
 
-/* Work handler function that logs when the trackball is moved */
+/* Work handler function that reads movement data */
 static void pim447_work_handler(struct k_work *work) {
     struct pim447_data *data = CONTAINER_OF(work, struct pim447_data, work);
+    const struct pim447_config *config = data->dev->config;
+    uint8_t buf[5];
+    int ret;
 
     LOG_INF("Work handler executed");
 
-    /* Log that the trackball movement was detected */
-    LOG_INF("Trackball moved");
+    /* Read movement data and switch state */
+    ret = i2c_burst_read_dt(&config->i2c, REG_LEFT, buf, 5);
+    if (ret) {
+        LOG_ERR("Failed to read movement data from PIM447");
+        return;
+    }
+
+    /* Calculate movement deltas */
+    int16_t delta_x = (int16_t)buf[1] - (int16_t)buf[0]; // Right - Left
+    int16_t delta_y = (int16_t)buf[3] - (int16_t)buf[2]; // Down - Up
+    bool sw_pressed = (buf[4] & MSK_SWITCH_STATE) != 0;
+
+    LOG_INF("Trackball moved: delta_x=%d, delta_y=%d, sw_pressed=%d", delta_x, delta_y, sw_pressed);
+
+    /* Read and clear the INT status register */
+    uint8_t int_status;
+    ret = i2c_reg_read_byte_dt(&config->i2c, REG_INT, &int_status);
+    if (ret) {
+        LOG_ERR("Failed to read INT status register");
+        return;
+    }
+
+    LOG_DBG("INT status before clearing: 0x%02X", int_status);
+
+    /* Clear the interrupt triggered bit if necessary */
+    if (int_status & MSK_INT_TRIGGERED) {
+        int_status &= ~MSK_INT_TRIGGERED;
+        ret = i2c_reg_write_byte_dt(&config->i2c, REG_INT, int_status);
+        if (ret) {
+            LOG_ERR("Failed to clear INT status register");
+            return;
+        }
+        LOG_DBG("INT status after clearing: 0x%02X", int_status);
+    }
+
+    /* Optionally, check the interrupt pin state */
+    int int_pin_state = gpio_pin_get_dt(&config->int_gpio);
+    LOG_DBG("Interrupt GPIO pin state after handling: %d", int_pin_state);
 }
 
 /* GPIO callback function triggered by the interrupt */
@@ -67,7 +105,7 @@ static void pim447_gpio_callback(const struct device *port, struct gpio_callback
                                  gpio_port_pins_t pins) {
     struct pim447_data *data = CONTAINER_OF(cb, struct pim447_data, int_gpio_cb);
 
-    LOG_INF("Interrupt detected on GPIO pin");
+    LOG_DBG("Interrupt detected on GPIO pin");
 
     /* Schedule the work handler to process the movement */
     k_work_submit(&data->work);
@@ -94,7 +132,7 @@ static int pim447_init(const struct device *dev) {
     }
 
     /* Configure the interrupt GPIO pin */
-    ret = gpio_pin_configure_dt(&config->int_gpio, GPIO_INPUT);
+    ret = gpio_pin_configure_dt(&config->int_gpio, GPIO_INPUT | GPIO_PULL_UP);
     if (ret) {
         LOG_ERR("Failed to configure interrupt GPIO");
         return ret;
@@ -112,7 +150,7 @@ static int pim447_init(const struct device *dev) {
     }
 
     /* Configure the GPIO interrupt */
-    ret = gpio_pin_interrupt_configure_dt(&config->int_gpio, GPIO_INT_EDGE_TO_ACTIVE);
+    ret = gpio_pin_interrupt_configure_dt(&config->int_gpio, GPIO_INT_EDGE_BOTH);
     if (ret) {
         LOG_ERR("Failed to configure GPIO interrupt");
         return ret;
@@ -127,6 +165,9 @@ static int pim447_init(const struct device *dev) {
         LOG_ERR("Failed to read INT register");
         return ret;
     }
+
+    LOG_INF("INT register before enabling interrupt: 0x%02X", int_reg);
+
     int_reg |= MSK_INT_OUT_EN;
     ret = i2c_reg_write_byte_dt(&config->i2c, REG_INT, int_reg);
     if (ret) {
@@ -134,12 +175,18 @@ static int pim447_init(const struct device *dev) {
         return ret;
     }
 
-    /* Log that the driver has been initialized */
+    /* Read back the INT register to confirm */
+    ret = i2c_reg_read_byte_dt(&config->i2c, REG_INT, &int_reg);
+    if (ret) {
+        LOG_ERR("Failed to read INT register after enabling");
+        return ret;
+    }
+    LOG_INF("INT register after enabling interrupt: 0x%02X", int_reg);
+
     LOG_INF("PIM447 driver initialized");
 
     return 0;
 }
-
 
 /* Device configuration */
 static const struct pim447_config pim447_config = {
