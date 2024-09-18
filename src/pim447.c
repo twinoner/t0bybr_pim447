@@ -6,12 +6,6 @@
 #include <zephyr/kernel.h>
 #include <zephyr/logging/log.h>
 
-/* Register definitions */
-#define REG_INT        0x0D  // Interrupt enable register
-
-/* Bit masks */
-#define MSK_INT_OUT_EN   0x01  // Mask to enable interrupt output
-
 LOG_MODULE_REGISTER(pim447, CONFIG_SENSOR_LOG_LEVEL);
 
 struct pim447_config {
