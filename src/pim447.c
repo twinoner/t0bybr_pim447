@@ -8,6 +8,7 @@
 
 
 #include <zmk/hid.h>
+#include <zmk/mouse.h>
 #include <zmk/endpoints.h>
 
 #define MOUSE_BUTTON_LEFT 0x01
