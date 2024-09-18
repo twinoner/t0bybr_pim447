@@ -53,6 +53,8 @@ static void pim447_work_handler(struct k_work *work);
 static void pim447_gpio_callback(const struct device *port, struct gpio_callback *cb,
                                  gpio_port_pins_t pins) {
     struct pim447_data *data = CONTAINER_OF(cb, struct pim447_data, int_gpio_cb);
+    LOG_INF("Callback");
+
     k_work_submit(&data->work);
 }
 
