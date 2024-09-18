@@ -6,8 +6,8 @@
 #include <zephyr/kernel.h>
 #include <zephyr/logging/log.h>
 
-#include <zephyr/hid.h>
-#include <zephyr/endpoints.h>
+#include <zmk/mouse/hid.h>
+#include <zmk/endpoints.h>
 
 #define MOUSE_BUTTON_LEFT 0x01
 
