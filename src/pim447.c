@@ -61,7 +61,6 @@ static void pim447_work_handler(struct k_work *work) {
     LOG_INF("Work handler executed");
 
     /* Read and clear the INT status register */
-uint8_t int_status;
 ret = i2c_reg_read_byte_dt(&config->i2c, REG_INT, &int_status);
 if (ret) {
     LOG_ERR("Failed to read INT status register");
