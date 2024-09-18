@@ -60,6 +60,24 @@ static void pim447_work_handler(struct k_work *work) {
 
     LOG_INF("Work handler executed");
 
+    /* Read and clear the INT status register */
+uint8_t int_status;
+ret = i2c_reg_read_byte_dt(&config->i2c, REG_INT, &int_status);
+if (ret) {
+    LOG_ERR("Failed to read INT status register");
+    return;
+}
+
+/* Clear the interrupt triggered bit */
+if (int_status & MSK_INT_TRIGGERED) {
+    int_status &= ~MSK_INT_TRIGGERED;
+    ret = i2c_reg_write_byte_dt(&config->i2c, REG_INT, int_status);
+    if (ret) {
+        LOG_ERR("Failed to clear INT status register");
+        return;
+    }
+}
+
     /* Read movement data and switch state */
     ret = i2c_burst_read_dt(&config->i2c, REG_LEFT, buf, 5);
     if (ret) {
@@ -182,6 +200,24 @@ static int pim447_init(const struct device *dev) {
         return ret;
     }
     LOG_INF("INT register after enabling interrupt: 0x%02X", int_reg);
+
+    /* Read and log the chip ID */
+    uint8_t chip_id_l, chip_id_h;
+    ret = i2c_reg_read_byte_dt(&config->i2c, REG_CHIP_ID_L, &chip_id_l);
+    if (ret) {
+        LOG_ERR("Failed to read chip ID low byte");
+        return ret;
+    }
+
+    ret = i2c_reg_read_byte_dt(&config->i2c, REG_CHIP_ID_H, &chip_id_h);
+    if (ret) {
+        LOG_ERR("Failed to read chip ID high byte");
+        return ret;
+    }
+
+    uint16_t chip_id = (chip_id_h << 8) | chip_id_l;
+    LOG_INF("PIM447 chip ID: 0x%04X", chip_id);
+
 
     LOG_INF("PIM447 driver initialized");
 
