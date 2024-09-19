@@ -7,6 +7,8 @@
 #include <zephyr/drivers/gpio.h>
 #include <zephyr/kernel.h>
 #include <zephyr/logging/log.h>
+#include <zephyr/input/input.h>
+
 
 /* Register Addresses */
 #define REG_LED_RED     0x00
@@ -33,6 +35,19 @@
 /* Interrupt Masks */
 #define MSK_INT_TRIGGERED   0b00000001
 #define MSK_INT_OUT_EN      0b00000010
+
+// Event types
+#define EV_SYN 0x00
+#define EV_KEY 0x01
+#define EV_REL 0x02
+
+// Relative axes
+#define REL_X 0x00
+#define REL_Y 0x01
+
+// Buttons
+#define BTN_LEFT 0x110
+
 
 LOG_MODULE_REGISTER(pim447, CONFIG_SENSOR_LOG_LEVEL);
 
@@ -94,6 +109,8 @@ static void pim447_work_handler(struct k_work *work) {
         LOG_INF("Trackball moved: delta_x=%d, delta_y=%d, sw_pressed=%d", delta_x, delta_y, sw_pressed);
         data->sw_pressed_prev = sw_pressed;
     }
+
+    input_report(dev, EV_REL, REL_Y, delta_y, false, K_NO_WAIT);
 
     /* Read and clear the INT status register if necessary */
     uint8_t int_status;
