@@ -6,7 +6,7 @@
 #include <zephyr/drivers/i2c.h>
 #include <zephyr/drivers/gpio.h>
 #include <zephyr/input/input.h>
-
+#include <zephyr/sys/util.h>
 #include <zephyr/kernel.h>
 #include <zephyr/logging/log.h>
 
@@ -35,6 +35,19 @@
 /* Interrupt Masks */
 #define MSK_INT_TRIGGERED   0b00000001
 #define MSK_INT_OUT_EN      0b00000010
+
+// Event types
+#define EV_SYN 0x00
+#define EV_KEY 0x01
+#define EV_REL 0x02
+
+// Relative axes
+#define REL_X 0x00
+#define REL_Y 0x01
+
+// Buttons
+#define BTN_LEFT 0x110
+
 
 LOG_MODULE_REGISTER(pim447, CONFIG_SENSOR_LOG_LEVEL);
 
