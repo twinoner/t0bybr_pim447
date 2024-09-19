@@ -74,6 +74,8 @@ static int pim447_enable_interrupt(const struct pim447_config *config, bool enab
 static void pim447_work_handler(struct k_work *work) {
     struct pim447_data *data = CONTAINER_OF(work, struct pim447_data, work);
     const struct pim447_config *config = data->dev->config;
+    const struct device *dev = data->dev;
+
     uint8_t buf[5];
     int ret;
 
