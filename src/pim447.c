@@ -1,3 +1,5 @@
+/* pim447.c - Driver for Pimoroni PIM447 Trackball */
+
 #define DT_DRV_COMPAT pimoroni_pim447
 
 #include <zephyr/device.h>
@@ -5,8 +7,6 @@
 #include <zephyr/drivers/gpio.h>
 #include <zephyr/kernel.h>
 #include <zephyr/logging/log.h>
-
-
 
 /* Register Addresses */
 #define REG_LED_RED     0x00
@@ -36,11 +36,13 @@
 
 LOG_MODULE_REGISTER(pim447, CONFIG_SENSOR_LOG_LEVEL);
 
+/* Device configuration structure */
 struct pim447_config {
     struct i2c_dt_spec i2c;
     struct gpio_dt_spec int_gpio;
 };
 
+/* Device data structure */
 struct pim447_data {
     const struct device *dev;
     struct k_work work;
@@ -48,22 +50,19 @@ struct pim447_data {
     bool sw_pressed_prev;
 };
 
+/* Forward declaration of functions */
 static void pim447_work_handler(struct k_work *work);
+static void pim447_gpio_callback(const struct device *port, struct gpio_callback *cb, gpio_port_pins_t pins);
+static int pim447_enable_interrupt(const struct pim447_config *config, bool enable);
 
-static void pim447_gpio_callback(const struct device *port, struct gpio_callback *cb,
-                                 gpio_port_pins_t pins) {
-    struct pim447_data *data = CONTAINER_OF(cb, struct pim447_data, int_gpio_cb);
-    LOG_INF("Callback");
-
-    k_work_submit(&data->work);
-}
-
-/* Work handler function that reads movement data and sends HID reports */
+/* Work handler function */
 static void pim447_work_handler(struct k_work *work) {
     struct pim447_data *data = CONTAINER_OF(work, struct pim447_data, work);
     const struct pim447_config *config = data->dev->config;
     uint8_t buf[5];
     int ret;
+
+    LOG_INF("Work handler executed");
 
     /* Read movement data and switch state */
     ret = i2c_burst_read_dt(&config->i2c, REG_LEFT, buf, 5);
@@ -71,6 +70,8 @@ static void pim447_work_handler(struct k_work *work) {
         LOG_ERR("Failed to read movement data from PIM447");
         return;
     }
+
+    LOG_INF("Raw data: LEFT=%d, RIGHT=%d, UP=%d, DOWN=%d, SWITCH=0x%02X", buf[0], buf[1], buf[2], buf[3], buf[4]);
 
     /* Calculate movement deltas */
     int16_t delta_x = (int16_t)buf[1] - (int16_t)buf[0]; // Right - Left
@@ -88,11 +89,10 @@ static void pim447_work_handler(struct k_work *work) {
         LOG_ERR("Failed to clear movement registers");
     }
 
-    /* Send HID mouse report if there's movement or button state changed */
+    /* Log the movement data */
     if (delta_x || delta_y || sw_pressed != data->sw_pressed_prev) {
-   
-        /* Log the movement data */
         LOG_INF("Trackball moved: delta_x=%d, delta_y=%d, sw_pressed=%d", delta_x, delta_y, sw_pressed);
+        data->sw_pressed_prev = sw_pressed;
     }
 
     /* Read and clear the INT status register if necessary */
@@ -103,6 +103,8 @@ static void pim447_work_handler(struct k_work *work) {
         return;
     }
 
+    LOG_INF("INT status before clearing: 0x%02X", int_status);
+
     if (int_status & MSK_INT_TRIGGERED) {
         int_status &= ~MSK_INT_TRIGGERED;
         ret = i2c_reg_write_byte_dt(&config->i2c, REG_INT, int_status);
@@ -110,14 +112,56 @@ static void pim447_work_handler(struct k_work *work) {
             LOG_ERR("Failed to clear INT status register");
             return;
         }
+        LOG_INF("INT status after clearing: 0x%02X", int_status);
     }
 }
 
+/* GPIO callback function */
+static void pim447_gpio_callback(const struct device *port, struct gpio_callback *cb, gpio_port_pins_t pins) {
+    struct pim447_data *data = CONTAINER_OF(cb, struct pim447_data, int_gpio_cb);
+    LOG_INF("GPIO callback triggered on pin %d", data->dev->config->int_gpio.pin);
+    k_work_submit(&data->work);
+}
+
+/* Function to enable or disable interrupt output */
+static int pim447_enable_interrupt(const struct pim447_config *config, bool enable) {
+    uint8_t int_reg;
+    int ret;
+
+    /* Read the current INT register value */
+    ret = i2c_reg_read_byte_dt(&config->i2c, REG_INT, &int_reg);
+    if (ret) {
+        LOG_ERR("Failed to read INT register");
+        return ret;
+    }
+
+    LOG_INF("INT register before enabling interrupt: 0x%02X", int_reg);
+
+    /* Clear the MSK_INT_OUT_EN bit */
+    int_reg &= ~MSK_INT_OUT_EN;
+
+    /* Conditionally set the MSK_INT_OUT_EN bit */
+    if (enable) {
+        int_reg |= MSK_INT_OUT_EN;
+    }
+
+    /* Write the updated INT register value */
+    ret = i2c_reg_write_byte_dt(&config->i2c, REG_INT, int_reg);
+    if (ret) {
+        LOG_ERR("Failed to write INT register");
+        return ret;
+    }
+
+    LOG_INF("INT register after enabling interrupt: 0x%02X", int_reg);
+
+    return 0;
+}
+
+/* Device initialization function */
 static int pim447_init(const struct device *dev) {
     const struct pim447_config *config = dev->config;
     struct pim447_data *data = dev->data;
     int ret;
-    uint8_t int_reg;
 
     data->dev = dev;
     data->sw_pressed_prev = false;
@@ -145,25 +189,21 @@ static int pim447_init(const struct device *dev) {
     uint16_t chip_id = ((uint16_t)chip_id_h << 8) | chip_id_l;
     LOG_INF("PIM447 chip ID: 0x%04X", chip_id);
 
-    /* Initialize the work handler */
-    k_work_init(&data->work, pim447_work_handler);
-
     /* Check if the interrupt GPIO device is ready */
     if (!device_is_ready(config->int_gpio.port)) {
         LOG_ERR("Interrupt GPIO device is not ready");
         return -ENODEV;
     }
 
-    /* Configure the interrupt GPIO pin */
-    ret = gpio_pin_configure_dt(&config->int_gpio, GPIO_INPUT | GPIO_PULL_UP);
+    /* Configure the interrupt GPIO pin without internal pull-up (external pull-up used) */
+    ret = gpio_pin_configure_dt(&config->int_gpio, GPIO_INPUT);
     if (ret) {
         LOG_ERR("Failed to configure interrupt GPIO");
         return ret;
     }
 
     /* Initialize the GPIO callback */
-    gpio_init_callback(&data->int_gpio_cb, pim447_gpio_callback,
-                       BIT(config->int_gpio.pin));
+    gpio_init_callback(&data->int_gpio_cb, pim447_gpio_callback, BIT(config->int_gpio.pin));
 
     /* Add the GPIO callback */
     ret = gpio_add_callback(config->int_gpio.port, &data->int_gpio_cb);
@@ -172,36 +212,38 @@ static int pim447_init(const struct device *dev) {
         return ret;
     }
 
-    /* Configure the GPIO interrupt */
-    ret = gpio_pin_interrupt_configure_dt(&config->int_gpio, GPIO_INT_EDGE_TO_ACTIVE);
+    /* Configure the GPIO interrupt for falling edge (active low) */
+    ret = gpio_pin_interrupt_configure_dt(&config->int_gpio, GPIO_INT_EDGE_FALLING);
     if (ret) {
         LOG_ERR("Failed to configure GPIO interrupt");
         return ret;
     }
 
-    /* Enable interrupt output on the trackball */
-    ret = i2c_reg_read_byte_dt(&config->i2c, REG_INT, &int_reg);
+    /* Clear any pending interrupts */
+    uint8_t int_status;
+    ret = i2c_reg_read_byte_dt(&config->i2c, REG_INT, &int_status);
     if (ret) {
-        LOG_ERR("Failed to read INT register");
+        LOG_ERR("Failed to read INT status register");
         return ret;
     }
 
-    LOG_INF("INT register before enabling interrupt: 0x%02X", int_reg);
+    /* Clear the MSK_INT_TRIGGERED bit */
+    int_status &= ~MSK_INT_TRIGGERED;
+    ret = i2c_reg_write_byte_dt(&config->i2c, REG_INT, int_status);
+    if (ret) {
+        LOG_ERR("Failed to clear INT status register");
+        return ret;
+    }
 
-    int_reg |= MSK_INT_OUT_EN;
-    ret = i2c_reg_write_byte_dt(&config->i2c, REG_INT, int_reg);
+    /* Enable interrupt output on the trackball */
+    ret = pim447_enable_interrupt(config, true);
     if (ret) {
         LOG_ERR("Failed to enable interrupt output");
         return ret;
     }
 
-    /* Read back the INT register to confirm */
-    ret = i2c_reg_read_byte_dt(&config->i2c, REG_INT, &int_reg);
-    if (ret) {
-        LOG_ERR("Failed to read INT register after enabling");
-        return ret;
-    }
-    LOG_INF("INT register after enabling interrupt: 0x%02X", int_reg);
+    /* Initialize the work handler */
+    k_work_init(&data->work, pim447_work_handler);
 
     LOG_INF("PIM447 driver initialized");
 
