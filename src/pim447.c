@@ -119,7 +119,10 @@ static void pim447_work_handler(struct k_work *work) {
 /* GPIO callback function */
 static void pim447_gpio_callback(const struct device *port, struct gpio_callback *cb, gpio_port_pins_t pins) {
     struct pim447_data *data = CONTAINER_OF(cb, struct pim447_data, int_gpio_cb);
-    LOG_INF("GPIO callback triggered on pin %d", data->dev->config->int_gpio.pin);
+    const struct pim447_config *config = data->dev->config;
+
+    LOG_INF("GPIO callback triggered on pin %d", config->int_gpio.pin);
+
     k_work_submit(&data->work);
 }
 
