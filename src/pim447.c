@@ -5,8 +5,6 @@
 #include <zephyr/device.h>
 #include <zephyr/drivers/i2c.h>
 #include <zephyr/drivers/gpio.h>
-#include <zephyr/input/input.h>
-#include <zephyr/sys/util.h>
 #include <zephyr/kernel.h>
 #include <zephyr/logging/log.h>
 
@@ -107,22 +105,67 @@ static void pim447_report_motion(const struct device *dev, int16_t delta_x, int1
         data->sw_pressed_prev = sw_pressed;
     }
 }
+
+/* Work handler function */
 static void pim447_work_handler(struct k_work *work) {
     struct pim447_data *data = CONTAINER_OF(work, struct pim447_data, work);
-    const struct device *dev = data->dev;
-    int16_t delta_x, delta_y;
-    bool sw_pressed;
+    const struct pim447_config *config = data->dev->config;
+    uint8_t buf[5];
     int ret;
 
-    ret = pim447_read_motion_data(dev, &delta_x, &delta_y, &sw_pressed);
+    LOG_INF("Work handler executed");
+
+    /* Read movement data and switch state */
+    ret = i2c_burst_read_dt(&config->i2c, REG_LEFT, buf, 5);
     if (ret) {
-        LOG_ERR("Failed to read motion data");
+        LOG_ERR("Failed to read movement data from PIM447");
         return;
     }
 
-    pim447_report_motion(dev, delta_x, delta_y, sw_pressed);
-}
+    LOG_INF("Raw data: LEFT=%d, RIGHT=%d, UP=%d, DOWN=%d, SWITCH=0x%02X", buf[0], buf[1], buf[2], buf[3], buf[4]);
 
+    /* Calculate movement deltas */
+    int16_t delta_x = (int16_t)buf[1] - (int16_t)buf[0]; // Right - Left
+    int16_t delta_y = (int16_t)buf[3] - (int16_t)buf[2]; // Down - Up
+    bool sw_pressed = (buf[4] & MSK_SWITCH_STATE) != 0;
+
+    /* Clear movement registers by writing zeros */
+    uint8_t zero = 0;
+    ret = i2c_reg_write_byte_dt(&config->i2c, REG_LEFT, zero);
+    ret |= i2c_reg_write_byte_dt(&config->i2c, REG_RIGHT, zero);
+    ret |= i2c_reg_write_byte_dt(&config->i2c, REG_UP, zero);
+    ret |= i2c_reg_write_byte_dt(&config->i2c, REG_DOWN, zero);
+
+    if (ret) {
+        LOG_ERR("Failed to clear movement registers");
+    }
+
+    /* Log the movement data */
+    if (delta_x || delta_y || sw_pressed != data->sw_pressed_prev) {
+        LOG_INF("Trackball moved: delta_x=%d, delta_y=%d, sw_pressed=%d", delta_x, delta_y, sw_pressed);
+        data->sw_pressed_prev = sw_pressed;
+    }
+
+    /* Read and clear the INT status register if necessary */
+    uint8_t int_status;
+    ret = i2c_reg_read_byte_dt(&config->i2c, REG_INT, &int_status);
+    if (ret) {
+        LOG_ERR("Failed to read INT status register");
+        return;
+    }
+
+    LOG_INF("INT status before clearing: 0x%02X", int_status);
+
+    if (int_status & MSK_INT_TRIGGERED) {
+        int_status &= ~MSK_INT_TRIGGERED;
+        ret = i2c_reg_write_byte_dt(&config->i2c, REG_INT, int_status);
+        if (ret) {
+            LOG_ERR("Failed to clear INT status register");
+            return;
+        }
+        LOG_INF("INT status after clearing: 0x%02X", int_status);
+    }
+}
 
 /* GPIO callback function */
 static void pim447_gpio_callback(const struct device *port, struct gpio_callback *cb, gpio_port_pins_t pins) {
