@@ -34,19 +34,6 @@
 #define MSK_INT_TRIGGERED   0b00000001
 #define MSK_INT_OUT_EN      0b00000010
 
-// Event types
-#define EV_SYN 0x00
-#define EV_KEY 0x01
-#define EV_REL 0x02
-
-// Relative axes
-#define REL_X 0x00
-#define REL_Y 0x01
-
-// Buttons
-#define BTN_LEFT 0x110
-
-
 LOG_MODULE_REGISTER(pim447, CONFIG_SENSOR_LOG_LEVEL);
 
 /* Device configuration structure */
@@ -67,44 +54,6 @@ struct pim447_data {
 static void pim447_work_handler(struct k_work *work);
 static void pim447_gpio_callback(const struct device *port, struct gpio_callback *cb, gpio_port_pins_t pins);
 static int pim447_enable_interrupt(const struct pim447_config *config, bool enable);
-
-static int pim447_read_motion_data(const struct device *dev, int16_t *delta_x, int16_t *delta_y, bool *sw_pressed) {
-    const struct pim447_config *config = dev->config;
-    uint8_t buf[5];
-    int ret;
-
-    // Read movement data and switch state
-    ret = i2c_burst_read_dt(&config->i2c, REG_LEFT, buf, sizeof(buf));
-    if (ret) {
-        LOG_ERR("Failed to read motion data");
-        return ret;
-    }
-
-    // Calculate movement deltas
-    *delta_x = (int16_t)buf[1] - (int16_t)buf[0]; // RIGHT - LEFT
-    *delta_y = (int16_t)buf[3] - (int16_t)buf[2]; // DOWN - UP
-    *sw_pressed = (buf[4] & MSK_SWITCH_STATE) != 0;
-
-    return 0;
-}
-
-
-static void pim447_report_motion(const struct device *dev, int16_t delta_x, int16_t delta_y, bool sw_pressed) {
-    bool have_x = delta_x != 0;
-    bool have_y = delta_y != 0;
-    struct pim447_data *data = dev->data;
-
-    if (have_x) {
-        input_report(dev, EV_REL, REL_X, delta_x, false, K_NO_WAIT);
-    }
-    if (have_y) {
-        input_report(dev, EV_REL, REL_Y, delta_y, false, K_NO_WAIT);
-    }
-    if (sw_pressed != data->sw_pressed_prev) {
-        input_report(dev, EV_KEY, BTN_LEFT, sw_pressed ? 1 : 0, true, K_NO_WAIT);
-        data->sw_pressed_prev = sw_pressed;
-    }
-}
 
 /* Work handler function */
 static void pim447_work_handler(struct k_work *work) {
