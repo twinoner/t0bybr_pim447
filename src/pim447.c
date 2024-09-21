@@ -267,7 +267,7 @@ static int pim447_init(const struct device *dev) {
     /* Initialize the work handler */
     k_work_init(&data->work, pim447_work_handler);
 
-    int ret = input_register_device(dev);
+    ret = input_register_device(dev);
     if (ret) {
         LOG_ERR("Failed to register input device");
         return ret;
