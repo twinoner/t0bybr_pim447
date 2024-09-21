@@ -113,6 +113,7 @@ static void pim447_work_handler(struct k_work *work) {
     }
 
     input_report_rel(dev, REL_X, delta_x, false, K_NO_WAIT);
+    input_report_rel(dev, REL_Y, delta_y, false, K_NO_WAIT);
 
     /* Read and clear the INT status register if necessary */
     uint8_t int_status;
@@ -266,13 +267,6 @@ static int pim447_init(const struct device *dev) {
 
     /* Initialize the work handler */
     k_work_init(&data->work, pim447_work_handler);
-
-    ret = input_register_device(dev);
-    if (ret) {
-        LOG_ERR("Failed to register input device");
-        return ret;
-    }
-
 
     LOG_INF("PIM447 driver initialized");
 
