@@ -95,16 +95,16 @@ static void pim447_work_handler(struct k_work *work) {
     int16_t delta_y = (int16_t)buf[3] - (int16_t)buf[2]; // Down - Up
     bool sw_pressed = (buf[4] & MSK_SWITCH_STATE) != 0;
 
-    /* Clear movement registers by writing zeros */
-    uint8_t zero = 0;
-    ret = i2c_reg_write_byte_dt(&config->i2c, REG_LEFT, zero);
-    ret |= i2c_reg_write_byte_dt(&config->i2c, REG_RIGHT, zero);
-    ret |= i2c_reg_write_byte_dt(&config->i2c, REG_UP, zero);
-    ret |= i2c_reg_write_byte_dt(&config->i2c, REG_DOWN, zero);
+    // /* Clear movement registers by writing zeros */
+    // uint8_t zero = 0;
+    // ret = i2c_reg_write_byte_dt(&config->i2c, REG_LEFT, zero);
+    // ret |= i2c_reg_write_byte_dt(&config->i2c, REG_RIGHT, zero);
+    // ret |= i2c_reg_write_byte_dt(&config->i2c, REG_UP, zero);
+    // ret |= i2c_reg_write_byte_dt(&config->i2c, REG_DOWN, zero);
 
-    if (ret) {
-        LOG_ERR("Failed to clear movement registers");
-    }
+    // if (ret) {
+    //     LOG_ERR("Failed to clear movement registers");
+    // }
 
     /* Log the movement data */
     if (delta_x || delta_y || sw_pressed != data->sw_pressed_prev) {
@@ -266,6 +266,13 @@ static int pim447_init(const struct device *dev) {
 
     /* Initialize the work handler */
     k_work_init(&data->work, pim447_work_handler);
+
+    int ret = input_register_device(dev);
+    if (ret) {
+        LOG_ERR("Failed to register input device");
+        return ret;
+    }
+
 
     LOG_INF("PIM447 driver initialized");
 
