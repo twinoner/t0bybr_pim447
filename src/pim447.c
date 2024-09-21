@@ -112,7 +112,7 @@ static void pim447_work_handler(struct k_work *work) {
         data->sw_pressed_prev = sw_pressed;
     }
 
-    input_report(dev, EV_REL, REL_Y, delta_y, false, K_NO_WAIT);
+    input_report_rel(dev, REL_X, delta_x, false, K_NO_WAIT);
 
     /* Read and clear the INT status register if necessary */
     uint8_t int_status;
