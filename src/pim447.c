@@ -41,6 +41,9 @@ LOG_MODULE_REGISTER(pim447, LOG_LEVEL_DBG);
 struct pim447_config {
     struct i2c_dt_spec i2c;
     struct gpio_dt_spec int_gpio;
+    
+    uint8_t x_input_code;
+    uint8_t y_input_code;
 };
 
 /* Device data structure */
@@ -49,6 +52,10 @@ struct pim447_data {
     struct k_work work;
     struct gpio_callback int_gpio_cb;
     bool sw_pressed_prev;
+
+    
+    uint8_t x_input_code;
+    uint8_t y_input_code;
 };
 
 /* Forward declaration of functions */

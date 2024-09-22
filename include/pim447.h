@@ -14,6 +14,9 @@ struct pimoroni_pim447_config {
 #ifdef CONFIG_ZMK_SENSOR_PIMORONI_PIM447_INTERRUPT
     const struct gpio_dt_spec int_gpio;
 #endif
+
+    uint8_t x_input_code;
+    uint8_t y_input_code;
 };
 
 struct pimoroni_pim447_data {
@@ -29,6 +32,9 @@ struct pimoroni_pim447_data {
     int8_t delta_down;
     bool sw_pressed;
     bool sw_changed;
+    
+    uint8_t x_input_code;
+    uint8_t y_input_code;
 };
 
 int pimoroni_pim447_led_set(const struct device *dev, uint8_t red, uint8_t green, uint8_t blue, uint8_t white);
