@@ -82,7 +82,10 @@ static void pim447_work_handler(struct k_work *work) {
     int16_t delta_y = (int16_t)buf[3] - (int16_t)buf[2]; // Down - Up
     bool sw_pressed = (buf[4] & MSK_SWITCH_STATE) != 0;
 
-    int err = input_report_key(dev, INPUT_BTN_LEFT, sw_pressed ? 1 : 0, true, K_NO_WAIT);
+    int err;
+
+
+    err = input_report_key(dev, INPUT_BTN_LEFT, sw_pressed ? 1 : 0, true, K_NO_WAIT);
     if (err) {
         LOG_ERR("Failed to report switch state: %d", err);
     } else {
@@ -108,7 +111,6 @@ static void pim447_work_handler(struct k_work *work) {
         data->sw_pressed_prev = sw_pressed;
     }
 
-    int err;
 
     /* Report relative X movement */
     err = input_report_rel(dev, INPUT_REL_X, delta_x, true, K_NO_WAIT);
