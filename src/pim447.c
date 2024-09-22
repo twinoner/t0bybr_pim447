@@ -287,8 +287,6 @@ static int pim447_init(const struct device *dev) {
     data->dev = dev;
     data->sw_pressed_prev = false;
 
-    pim447_enable(dev);
-
     /* Check if the I2C device is ready */
     if (!device_is_ready(config->i2c.bus)) {
         LOG_ERR("I2C bus device is not ready");
@@ -312,6 +310,9 @@ static int pim447_init(const struct device *dev) {
     uint16_t chip_id = ((uint16_t)chip_id_h << 8) | chip_id_l;
     LOG_INF("PIM447 chip ID: 0x%04X", chip_id);
 
+    /* Enable the Trackball */
+    pim447_enable(dev);
+
     /* Initialize the work handler */
     k_work_init(&data->work, pim447_work_handler);
 
@@ -330,6 +331,16 @@ static const struct pim447_config pim447_config = {
 /* Device data */
 static struct pim447_data pim447_data;
 
-/* Device initialization macro */
-DEVICE_DT_INST_DEFINE(0, pim447_init, NULL, &pim447_data, &pim447_config,
-                      POST_KERNEL, CONFIG_INPUT_INIT_PRIORITY, NULL);
+#define PIM447_DEFINE(n)                                                                          \
+    static struct pim447_data data##n;                                                             \
+    static const struct pim447_config config##n = {                                                \
+        .int_gpios = GPIO_DT_SPEC_INST_GET(n, int_gpios),                                           \
+        .x_input_code = DT_PROP(DT_DRV_INST(n), x_input_code),                                     \
+        .y_input_code = DT_PROP(DT_DRV_INST(n), y_input_code),                                     \
+    };                                                                                             \
+                                                                                                   \
+    /* Device initialization macro */
+    DEVICE_DT_INST_DEFINE(0, pim447_init, NULL, &data##n, &config##n,
+                        POST_KERNEL, CONFIG_INPUT_INIT_PRIORITY, NULL);
+
+DT_INST_FOREACH_STATUS_OKAY(PIM447_DEFINE)
