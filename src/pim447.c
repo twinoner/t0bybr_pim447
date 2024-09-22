@@ -287,6 +287,8 @@ static int pim447_init(const struct device *dev) {
     data->dev = dev;
     data->sw_pressed_prev = false;
 
+    pim447_enable(dev);
+
     /* Check if the I2C device is ready */
     if (!device_is_ready(config->i2c.bus)) {
         LOG_ERR("I2C bus device is not ready");
