@@ -9,8 +9,6 @@
 #include <zephyr/logging/log.h>
 #include <zephyr/input/input.h>
 
-#include <zmk/hid.h>
-
 /* Register Addresses */
 #define REG_LED_RED     0x00
 #define REG_LED_GRN     0x01
@@ -71,6 +69,13 @@ static void pim447_work_handler(struct k_work *work);
 static void pim447_gpio_callback(const struct device *port, struct gpio_callback *cb, gpio_port_pins_t pins);
 static int pim447_enable_interrupt(const struct pim447_config *config, bool enable);
 
+const struct device *input_listener_dev = DEVICE_DT_GET(DT_NODELABEL(mmv_input_listener));
+
+if (!device_is_ready(input_listener_dev)) {
+    LOG_ERR("Input listener device is not ready");
+    return -ENODEV;
+}
+
 /* Work handler function */
 static void pim447_work_handler(struct k_work *work) {
     struct pim447_data *data = CONTAINER_OF(work, struct pim447_data, work);
@@ -112,6 +117,23 @@ static void pim447_work_handler(struct k_work *work) {
         LOG_INF("Trackball moved: delta_x=%d, delta_y=%d, sw_pressed=%d", delta_x, delta_y, sw_pressed);
         data->sw_pressed_prev = sw_pressed;
     }
+
+
+    struct input_event input_events[2];
+
+    input_events[0].type = INPUT_EVENT_TYPE_RELATIVE;
+    input_events[0].code = INPUT_REL_X;
+    input_events[0].value = delta_x;
+
+    input_events[1].type = INPUT_EVENT_TYPE_RELATIVE;
+    input_events[1].code = INPUT_REL_Y;
+    input_events[1].value = delta_y;
+
+    int err = input_report(input_listener_dev, input_events, ARRAY_SIZE(input_events));
+    if (err) {
+        LOG_ERR("Failed to report input events: %d", err);
+    }
+
 
     /* Read and clear the INT status register if necessary */
     uint8_t int_status;
