@@ -85,7 +85,7 @@ static void pim447_work_handler(struct k_work *work) {
     int err;
 
 
-    err = input_report_key(dev, INPUT_BTN_LEFT, sw_pressed ? 1 : 0, true, K_NO_WAIT);
+    err = input_report_key(dev, INPUT_BTN_0, sw_pressed ? 1 : 0, true, K_FOREVER);
     if (err) {
         LOG_ERR("Failed to report switch state: %d", err);
     } else {
