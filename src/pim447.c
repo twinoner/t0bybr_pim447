@@ -9,7 +9,6 @@
 #include <zephyr/logging/log.h>
 #include <zephyr/input/input.h>
 
-#include <zmk/hid.h>
 
 
 /* Register Addresses */
@@ -114,9 +113,10 @@ static void pim447_work_handler(struct k_work *work) {
         data->sw_pressed_prev = sw_pressed;
     }
 
-    struct zmk_hid_mouse_report *report = zmk_hid_get_mouse_report();
-    report->body.x = delta_x;
-    report->body.y = delta_y;
+
+
+    input_report_rel(dev, REL_X, delta_x, false, K_NO_WAIT);
+    input_report_rel(dev, REL_Y, delta_y, false, K_NO_WAIT);
 
     /* Read and clear the INT status register if necessary */
     uint8_t int_status;
