@@ -8,6 +8,8 @@
 #include <zephyr/kernel.h>
 #include <zephyr/logging/log.h>
 #include <zephyr/input/input.h>
+#include <zephyr/sys/timeutil.h>  // For time utilities
+#include <zephyr/posix/time.h>    // For struct timespec
 
 /* Register Addresses */
 #define REG_LED_RED     0x00
@@ -119,24 +121,32 @@ static void pim447_work_handler(struct k_work *work) {
         return;
     }
 
+
+
     uint32_t timestamp = k_uptime_get_32(); // Get the current uptime in milliseconds
+
+
+    k_ticks_t ticks = k_uptime_ticks();
+    struct timespec timestamp;
+
+    k_ticks_to_timespec(ticks, &timestamp);
 
     int err;
 
     // Report relative X movement
-    err = input_report_rel(input_listener_dev, INPUT_REL_X, delta_x, false, timestamp);
+    err = input_report_rel(input_listener_dev, INPUT_REL_X, delta_x, false, &timestamp);
     if (err) {
         LOG_ERR("Failed to report rel_x: %d", err);
     }
 
     // Report relative Y movement
-    err = input_report_rel(input_listener_dev, INPUT_REL_Y, delta_y, false, timestamp);
+    err = input_report_rel(input_listener_dev, INPUT_REL_Y, delta_y, false, &timestamp);
     if (err) {
         LOG_ERR("Failed to report rel_y: %d", err);
     }
 
     // Synchronize the input events
-    err = input_sync(input_listener_dev, timestamp);
+    err = input_sync(input_listener_dev, &timestamp);
     if (err) {
         LOG_ERR("Failed to sync input: %d", err);
     }
