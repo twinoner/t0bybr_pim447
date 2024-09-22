@@ -299,7 +299,7 @@ static const struct pim447_config pim447_config = {
 static struct pim447_data pim447_data;
 
 static const struct sensor_driver_api pim447_driver_api = {
-    .config = pim447_config,
+    .attr_set = pim447_config,
 };
 
 /* Device initialization macro */
