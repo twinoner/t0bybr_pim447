@@ -124,13 +124,13 @@ static void pim447_work_handler(struct k_work *work) {
     int err;
 
     // Report relative X movement
-    err = input_report_rel(input_listener_dev, INPUT_REL_X, rel_x, false, timestamp);
+    err = input_report_rel(input_listener_dev, INPUT_REL_X, delta_x, false, timestamp);
     if (err) {
         LOG_ERR("Failed to report rel_x: %d", err);
     }
 
     // Report relative Y movement
-    err = input_report_rel(input_listener_dev, INPUT_REL_Y, rel_y, false, timestamp);
+    err = input_report_rel(input_listener_dev, INPUT_REL_Y, delta_y, false, timestamp);
     if (err) {
         LOG_ERR("Failed to report rel_y: %d", err);
     }
