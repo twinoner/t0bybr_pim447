@@ -5,12 +5,9 @@
 #include <zephyr/device.h>
 #include <zephyr/drivers/i2c.h>
 #include <zephyr/drivers/gpio.h>
-#include <zephyr/drivers/sensor.h>
+#include <zephyr/drivers/input/input.h>
 #include <zephyr/kernel.h>
 #include <zephyr/logging/log.h>
-#include <zephyr/input/input.h>
-#include <zephyr/sys/timeutil.h>  // For time utilities
-#include <zephyr/posix/time.h>    // For struct timespec
 
 /* Register Addresses */
 #define REG_LED_RED     0x00
@@ -38,20 +35,7 @@
 #define MSK_INT_TRIGGERED   0b00000001
 #define MSK_INT_OUT_EN      0b00000010
 
-// Event types
-#define EV_SYN 0x00
-#define EV_KEY 0x01
-#define EV_REL 0x02
-
-// Relative axes
-#define REL_X 0x00
-#define REL_Y 0x01
-
-// Buttons
-#define BTN_LEFT 0x110
-
-
-LOG_MODULE_REGISTER(pim447, CONFIG_SENSOR_LOG_LEVEL);
+LOG_MODULE_REGISTER(pim447, LOG_LEVEL_DBG);
 
 /* Device configuration structure */
 struct pim447_config {
@@ -72,7 +56,6 @@ static void pim447_work_handler(struct k_work *work);
 static void pim447_gpio_callback(const struct device *port, struct gpio_callback *cb, gpio_port_pins_t pins);
 static int pim447_enable_interrupt(const struct pim447_config *config, bool enable);
 
-
 /* Work handler function */
 static void pim447_work_handler(struct k_work *work) {
     struct pim447_data *data = CONTAINER_OF(work, struct pim447_data, work);
@@ -91,7 +74,8 @@ static void pim447_work_handler(struct k_work *work) {
         return;
     }
 
-    LOG_INF("Raw data: LEFT=%d, RIGHT=%d, UP=%d, DOWN=%d, SWITCH=0x%02X", buf[0], buf[1], buf[2], buf[3], buf[4]);
+    LOG_INF("Raw data: LEFT=%d, RIGHT=%d, UP=%d, DOWN=%d, SWITCH=0x%02X",
+            buf[0], buf[1], buf[2], buf[3], buf[4]);
 
     /* Calculate movement deltas */
     int16_t delta_x = (int16_t)buf[1] - (int16_t)buf[0]; // Right - Left
@@ -111,29 +95,36 @@ static void pim447_work_handler(struct k_work *work) {
 
     /* Log the movement data */
     if (delta_x || delta_y || sw_pressed != data->sw_pressed_prev) {
-        LOG_INF("Trackball moved: delta_x=%d, delta_y=%d, sw_pressed=%d", delta_x, delta_y, sw_pressed);
+        LOG_INF("Trackball moved: delta_x=%d, delta_y=%d, sw_pressed=%d",
+                delta_x, delta_y, sw_pressed);
         data->sw_pressed_prev = sw_pressed;
     }
 
     int err;
 
-    // Report relative X movement
-    err = input_report_rel(dev, INPUT_REL_X, delta_x, false, K_FOREVER);
+    /* Report relative X movement */
+    err = input_report_rel(dev, INPUT_REL_X, delta_x, false, NULL);
     if (err) {
         LOG_ERR("Failed to report delta_x: %d", err);
     } else {
         LOG_DBG("Reported delta_x: %d", delta_x);
     }
 
-    // Report relative Y movement
-    err = input_report_rel(dev, INPUT_REL_Y, delta_y, false, K_FOREVER);
+    /* Report relative Y movement */
+    err = input_report_rel(dev, INPUT_REL_Y, delta_y, false, NULL);
     if (err) {
         LOG_ERR("Failed to report delta_y: %d", err);
     } else {
         LOG_DBG("Reported delta_y: %d", delta_y);
     }
 
-
+    /* Synchronize the input events */
+    err = input_sync(dev, NULL);
+    if (err) {
+        LOG_ERR("Failed to sync input: %d", err);
+    } else {
+        LOG_DBG("Input events synchronized");
+    }
 
     /* Read and clear the INT status register if necessary */
     uint8_t int_status;
@@ -178,14 +169,13 @@ static int pim447_enable_interrupt(const struct pim447_config *config, bool enab
         return ret;
     }
 
-    LOG_INF("INT register before enabling interrupt: 0x%02X", int_reg);
+    LOG_INF("INT register before changing: 0x%02X", int_reg);
 
-    /* Clear the MSK_INT_OUT_EN bit */
-    int_reg &= ~MSK_INT_OUT_EN;
-
-    /* Conditionally set the MSK_INT_OUT_EN bit */
+    /* Update the MSK_INT_OUT_EN bit */
     if (enable) {
         int_reg |= MSK_INT_OUT_EN;
+    } else {
+        int_reg &= ~MSK_INT_OUT_EN;
     }
 
     /* Write the updated INT register value */
@@ -195,42 +185,18 @@ static int pim447_enable_interrupt(const struct pim447_config *config, bool enab
         return ret;
     }
 
-    LOG_INF("INT register after enabling interrupt: 0x%02X", int_reg);
+    LOG_INF("INT register after changing: 0x%02X", int_reg);
 
     return 0;
 }
 
-/* Device initialization function */
-static int pim447_init(const struct device *dev) {
+/* Enable function */
+static int pim447_enable(const struct device *dev) {
     const struct pim447_config *config = dev->config;
     struct pim447_data *data = dev->data;
     int ret;
 
-    data->dev = dev;
-    data->sw_pressed_prev = false;
-
-    /* Check if the I2C device is ready */
-    if (!device_is_ready(config->i2c.bus)) {
-        LOG_ERR("I2C bus device is not ready");
-        return -ENODEV;
-    }
-
-    /* Read and log the chip ID */
-    uint8_t chip_id_l, chip_id_h;
-    ret = i2c_reg_read_byte_dt(&config->i2c, REG_CHIP_ID_L, &chip_id_l);
-    if (ret) {
-        LOG_ERR("Failed to read chip ID low byte");
-        return ret;
-    }
-
-    ret = i2c_reg_read_byte_dt(&config->i2c, REG_CHIP_ID_H, &chip_id_h);
-    if (ret) {
-        LOG_ERR("Failed to read chip ID high byte");
-        return ret;
-    }
-
-    uint16_t chip_id = ((uint16_t)chip_id_h << 8) | chip_id_l;
-    LOG_INF("PIM447 chip ID: 0x%04X", chip_id);
+    LOG_INF("pim447_enable called");
 
     /* Check if the interrupt GPIO device is ready */
     if (!device_is_ready(config->int_gpio.port)) {
@@ -285,6 +251,73 @@ static int pim447_init(const struct device *dev) {
         return ret;
     }
 
+    LOG_INF("pim447 enabled");
+
+    return 0;
+}
+
+/* Disable function */
+static int pim447_disable(const struct device *dev) {
+    const struct pim447_config *config = dev->config;
+    struct pim447_data *data = dev->data;
+    int ret;
+
+    LOG_INF("pim447_disable called");
+
+    /* Disable interrupt output on the trackball */
+    ret = pim447_enable_interrupt(config, false);
+    if (ret) {
+        LOG_ERR("Failed to disable interrupt output");
+        return ret;
+    }
+
+    /* Disable GPIO interrupt */
+    ret = gpio_pin_interrupt_configure_dt(&config->int_gpio, GPIO_INT_DISABLE);
+    if (ret) {
+        LOG_ERR("Failed to disable GPIO interrupt");
+        return ret;
+    }
+
+    /* Remove the GPIO callback */
+    gpio_remove_callback(config->int_gpio.port, &data->int_gpio_cb);
+
+    LOG_INF("pim447 disabled");
+
+    return 0;
+}
+
+/* Device initialization function */
+static int pim447_init(const struct device *dev) {
+    const struct pim447_config *config = dev->config;
+    struct pim447_data *data = dev->data;
+    int ret;
+
+    data->dev = dev;
+    data->sw_pressed_prev = false;
+
+    /* Check if the I2C device is ready */
+    if (!device_is_ready(config->i2c.bus)) {
+        LOG_ERR("I2C bus device is not ready");
+        return -ENODEV;
+    }
+
+    /* Read and log the chip ID */
+    uint8_t chip_id_l, chip_id_h;
+    ret = i2c_reg_read_byte_dt(&config->i2c, REG_CHIP_ID_L, &chip_id_l);
+    if (ret) {
+        LOG_ERR("Failed to read chip ID low byte");
+        return ret;
+    }
+
+    ret = i2c_reg_read_byte_dt(&config->i2c, REG_CHIP_ID_H, &chip_id_h);
+    if (ret) {
+        LOG_ERR("Failed to read chip ID high byte");
+        return ret;
+    }
+
+    uint16_t chip_id = ((uint16_t)chip_id_h << 8) | chip_id_l;
+    LOG_INF("PIM447 chip ID: 0x%04X", chip_id);
+
     /* Initialize the work handler */
     k_work_init(&data->work, pim447_work_handler);
 
@@ -292,6 +325,12 @@ static int pim447_init(const struct device *dev) {
 
     return 0;
 }
+
+/* Input driver API */
+static const struct input_driver_api pim447_driver_api = {
+    .enable = pim447_enable,
+    .disable = pim447_disable,
+};
 
 /* Device configuration */
 static const struct pim447_config pim447_config = {
@@ -302,17 +341,6 @@ static const struct pim447_config pim447_config = {
 /* Device data */
 static struct pim447_data pim447_data;
 
-static int pim447_attr_set(const struct device *dev, enum sensor_channel chan,
-                            enum sensor_attribute attr, const struct sensor_value *val) {
-return;
-                            }
-
-static const struct sensor_driver_api pim447_driver_api = {
-    .attr_set = pim447_attr_set,
-};
-
 /* Device initialization macro */
 DEVICE_DT_INST_DEFINE(0, pim447_init, NULL, &pim447_data, &pim447_config,
-                      POST_KERNEL, CONFIG_KERNEL_INIT_PRIORITY_DEVICE, &pim447_driver_api);
-
-
+                      POST_KERNEL, CONFIG_INPUT_INIT_PRIORITY, &pim447_driver_api);
