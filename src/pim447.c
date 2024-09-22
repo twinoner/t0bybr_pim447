@@ -88,8 +88,8 @@ static void pim447_work_handler(struct k_work *work) {
     int32_t delta_y_scaled = (delta_y_raw * scale_multiplier) / scale_divisor;
 
     /* Convert back to int16_t if necessary */
-    int32_t delta_x = delta_x_scaled;
-    int32_t delta_y = delta_y_scaled;
+    int16_t delta_x = (int16_t)delta_x_scaled;
+    int16_t delta_y = (int16_t)delta_y_scaled;
 
     /* Calculate movement deltas */
     // int16_t delta_x = (int16_t)buf[1] - (int16_t)buf[0]; // Right - Left
