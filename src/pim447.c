@@ -114,16 +114,6 @@ static void pim447_work_handler(struct k_work *work) {
         data->sw_pressed_prev = sw_pressed;
     }
 
-    const struct device *input_listener_dev = DEVICE_DT_GET(DT_NODELABEL(mmv_input_listener));
-
-    if (!device_is_ready(input_listener_dev)) {
-        LOG_ERR("Input listener device is not ready");
-        return;
-    }
-
-
-
-
     int err;
 
     // Report relative X movement
@@ -307,6 +297,14 @@ static const struct pim447_config pim447_config = {
 /* Device data */
 static struct pim447_data pim447_data;
 
+static const struct input_driver_api pim447_driver_api = {
+    .config = pim447_config,
+    .data = pim447_data,
+    .enable_interrupt = pim447_enable_interrupt,
+};
+
 /* Device initialization macro */
 DEVICE_DT_INST_DEFINE(0, pim447_init, NULL, &pim447_data, &pim447_config,
-                      POST_KERNEL, CONFIG_KERNEL_INIT_PRIORITY_DEVICE, NULL);
+                      POST_KERNEL, CONFIG_KERNEL_INIT_PRIORITY_DEVICE, &pim447_driver_api);
+
+
