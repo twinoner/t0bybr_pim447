@@ -112,20 +112,20 @@ static void pim447_work_handler(struct k_work *work) {
         data->sw_pressed_prev = sw_pressed;
     }
 
-const struct device *input_listener_dev = DEVICE_DT_GET(DT_NODELABEL(mmv_input_listener));
+    const struct device *input_listener_dev = DEVICE_DT_GET(DT_NODELABEL(mmv_input_listener));
 
-if (!device_is_ready(input_listener_dev)) {
-    LOG_ERR("Input listener device is not ready");
-    return -ENODEV;
-}
+    if (!device_is_ready(input_listener_dev)) {
+        LOG_ERR("Input listener device is not ready");
+        return;
+    }
 
     struct input_event input_events[2];
 
-    input_events[0].type = INPUT_EVENT_TYPE_RELATIVE;
+    input_events[0].type = INPUT_EV_REL;
     input_events[0].code = INPUT_REL_X;
     input_events[0].value = delta_x;
 
-    input_events[1].type = INPUT_EVENT_TYPE_RELATIVE;
+    input_events[1].type = INPUT_EV_REL;
     input_events[1].code = INPUT_REL_Y;
     input_events[1].value = delta_y;
 
