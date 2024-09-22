@@ -113,8 +113,6 @@ static void pim447_work_handler(struct k_work *work) {
         data->sw_pressed_prev = sw_pressed;
     }
 
-    zmk_hid_mouse_movement_set(delta_x, delta_y);
-
     /* Read and clear the INT status register if necessary */
     uint8_t int_status;
     ret = i2c_reg_read_byte_dt(&config->i2c, REG_INT, &int_status);
