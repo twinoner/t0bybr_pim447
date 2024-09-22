@@ -120,17 +120,17 @@ static void pim447_work_handler(struct k_work *work) {
     // Report relative X movement
     err = input_report_rel(dev, INPUT_REL_X, delta_x, false, K_FOREVER);
     if (err) {
-        LOG_ERR("Failed to report rel_x: %d", err);
+        LOG_ERR("Failed to report delta_x: %d", err);
     } else {
-        LOG_DBG("Reported rel_x: %d", rel_x);
+        LOG_DBG("Reported delta_x: %d", delta_x);
     }
 
     // Report relative Y movement
     err = input_report_rel(dev, INPUT_REL_Y, delta_y, false, K_FOREVER);
     if (err) {
-        LOG_ERR("Failed to report rel_y: %d", err);
+        LOG_ERR("Failed to report delta_y: %d", err);
     } else {
-        LOG_DBG("Reported rel_y: %d", rel_y);
+        LOG_DBG("Reported delta_y: %d", delta_y);
     }
 
 
