@@ -77,9 +77,23 @@ static void pim447_work_handler(struct k_work *work) {
     LOG_INF("Raw data: LEFT=%d, RIGHT=%d, UP=%d, DOWN=%d, SWITCH=0x%02X",
             buf[0], buf[1], buf[2], buf[3], buf[4]);
 
+    int32_t delta_x_raw = (int32_t)buf[1] - (int32_t)buf[0];
+    int32_t delta_y_raw = (int32_t)buf[3] - (int32_t)buf[2];
+
+    int32_t scale_multiplier = 1;
+    int32_t scale_divisor = 4; // Adjust these values as needed
+
+    /* Apply scaling */
+    int32_t delta_x_scaled = (delta_x_raw * scale_multiplier) / scale_divisor;
+    int32_t delta_y_scaled = (delta_y_raw * scale_multiplier) / scale_divisor;
+
+    /* Convert back to int16_t if necessary */
+    int32_t delta_x = delta_x_scaled;
+    int32_t delta_y = delta_y_scaled;
+
     /* Calculate movement deltas */
-    int16_t delta_x = (int16_t)buf[1] - (int16_t)buf[0]; // Right - Left
-    int16_t delta_y = (int16_t)buf[3] - (int16_t)buf[2]; // Down - Up
+    // int16_t delta_x = (int16_t)buf[1] - (int16_t)buf[0]; // Right - Left
+    // int16_t delta_y = (int16_t)buf[3] - (int16_t)buf[2]; // Down - Up
     bool sw_pressed = (buf[4] & MSK_SWITCH_STATE) != 0;
 
     int err;
