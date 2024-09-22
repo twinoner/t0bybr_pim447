@@ -82,6 +82,14 @@ static void pim447_work_handler(struct k_work *work) {
     int16_t delta_y = (int16_t)buf[3] - (int16_t)buf[2]; // Down - Up
     bool sw_pressed = (buf[4] & MSK_SWITCH_STATE) != 0;
 
+    int err = input_report_key(dev, INPUT_BTN_LEFT, sw_pressed ? 1 : 0, true, K_NO_WAIT);
+    if (err) {
+        LOG_ERR("Failed to report switch state: %d", err);
+    } else {
+        LOG_DBG("Reported switch state: %d", sw_pressed);
+    }
+
+
     /* Clear movement registers by writing zeros */
     uint8_t zero = 0;
     ret = i2c_reg_write_byte_dt(&config->i2c, REG_LEFT, zero);
