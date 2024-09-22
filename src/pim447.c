@@ -119,19 +119,26 @@ static void pim447_work_handler(struct k_work *work) {
         return;
     }
 
-    struct input_event input_events[2];
+    uint32_t timestamp = k_uptime_get_32(); // Get the current uptime in milliseconds
 
-    input_events[0].type = INPUT_EV_REL;
-    input_events[0].code = INPUT_REL_X;
-    input_events[0].value = delta_x;
+    int err;
 
-    input_events[1].type = INPUT_EV_REL;
-    input_events[1].code = INPUT_REL_Y;
-    input_events[1].value = delta_y;
-
-    int err = input_report(input_listener_dev, input_events, ARRAY_SIZE(input_events));
+    // Report relative X movement
+    err = input_report_rel(input_listener_dev, INPUT_REL_X, rel_x, false, timestamp);
     if (err) {
-        LOG_ERR("Failed to report input events: %d", err);
+        LOG_ERR("Failed to report rel_x: %d", err);
+    }
+
+    // Report relative Y movement
+    err = input_report_rel(input_listener_dev, INPUT_REL_Y, rel_y, false, timestamp);
+    if (err) {
+        LOG_ERR("Failed to report rel_y: %d", err);
+    }
+
+    // Synchronize the input events
+    err = input_sync(input_listener_dev, timestamp);
+    if (err) {
+        LOG_ERR("Failed to sync input: %d", err);
     }
 
 
