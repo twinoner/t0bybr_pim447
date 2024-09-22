@@ -5,6 +5,7 @@
 #include <zephyr/device.h>
 #include <zephyr/drivers/i2c.h>
 #include <zephyr/drivers/gpio.h>
+#include <zephyr/drivers/sensor.h>
 #include <zephyr/kernel.h>
 #include <zephyr/logging/log.h>
 #include <zephyr/input/input.h>
@@ -297,10 +298,8 @@ static const struct pim447_config pim447_config = {
 /* Device data */
 static struct pim447_data pim447_data;
 
-static const struct input_driver_api pim447_driver_api = {
+static const struct sensor_driver_api pim447_driver_api = {
     .config = pim447_config,
-    .data = pim447_data,
-    .enable_interrupt = pim447_enable_interrupt,
 };
 
 /* Device initialization macro */
