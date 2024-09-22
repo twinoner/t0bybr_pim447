@@ -103,7 +103,7 @@ static void pim447_work_handler(struct k_work *work) {
     int err;
 
     /* Report relative X movement */
-    err = input_report_rel(dev, INPUT_REL_X, delta_x, false, NULL);
+    err = input_report_rel(dev, INPUT_REL_X, delta_x, true, K_NO_WAIT);
     if (err) {
         LOG_ERR("Failed to report delta_x: %d", err);
     } else {
@@ -111,19 +111,11 @@ static void pim447_work_handler(struct k_work *work) {
     }
 
     /* Report relative Y movement */
-    err = input_report_rel(dev, INPUT_REL_Y, delta_y, false, NULL);
+    err = input_report_rel(dev, INPUT_REL_Y, delta_y, true, K_NO_WAIT);
     if (err) {
         LOG_ERR("Failed to report delta_y: %d", err);
     } else {
         LOG_DBG("Reported delta_y: %d", delta_y);
-    }
-
-    /* Synchronize the input events */
-    err = input_sync(dev, NULL);
-    if (err) {
-        LOG_ERR("Failed to sync input: %d", err);
-    } else {
-        LOG_DBG("Input events synchronized");
     }
 
     /* Read and clear the INT status register if necessary */
