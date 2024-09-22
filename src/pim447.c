@@ -298,8 +298,13 @@ static const struct pim447_config pim447_config = {
 /* Device data */
 static struct pim447_data pim447_data;
 
+static int pim447_attr_set(const struct device *dev, enum sensor_channel chan,
+                            enum sensor_attribute attr, const struct sensor_value *val) {
+return;
+                            }
+
 static const struct sensor_driver_api pim447_driver_api = {
-    .attr_set = pim447_config,
+    .attr_set = pim447_attr_set,
 };
 
 /* Device initialization macro */
