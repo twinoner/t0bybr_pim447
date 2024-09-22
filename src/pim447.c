@@ -123,7 +123,7 @@ static void pim447_work_handler(struct k_work *work) {
 
 
 
-    uint32_t timestamp = k_uptime_get_32(); // Get the current uptime in milliseconds
+    // uint32_t timestamp = k_uptime_get_32(); // Get the current uptime in milliseconds
 
 
     k_ticks_t ticks = k_uptime_ticks();
