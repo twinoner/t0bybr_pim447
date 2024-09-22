@@ -102,8 +102,6 @@ static void pim447_work_handler(struct k_work *work) {
 
     int err;
 
-    INPUT_REL_X = delta_x;
-
     /* Report relative X movement */
     err = input_report_rel(dev, INPUT_REL_X, delta_x, true, K_NO_WAIT);
     if (err) {
