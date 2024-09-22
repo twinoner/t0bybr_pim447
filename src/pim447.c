@@ -331,16 +331,6 @@ static const struct pim447_config pim447_config = {
 /* Device data */
 static struct pim447_data pim447_data;
 
-#define PIM447_DEFINE(n)                                                                          \
-    static struct pim447_data data##n;                                                             \
-    static const struct pim447_config config##n = {                                                \
-        .int_gpios = GPIO_DT_SPEC_INST_GET(n, int_gpios),                                           \
-        .x_input_code = DT_PROP(DT_DRV_INST(n), x_input_code),                                     \
-        .y_input_code = DT_PROP(DT_DRV_INST(n), y_input_code),                                     \
-    };                                                                                             \
-                                                                                                   \
     /* Device initialization macro */
-    DEVICE_DT_INST_DEFINE(0, pim447_init, NULL, &data##n, &config##n,
+    DEVICE_DT_INST_DEFINE(0, pim447_init, NULL, &pim447_data, &pim447_config,
                         POST_KERNEL, CONFIG_INPUT_INIT_PRIORITY, NULL);
-
-DT_INST_FOREACH_STATUS_OKAY(PIM447_DEFINE)
