@@ -69,12 +69,6 @@ static void pim447_work_handler(struct k_work *work);
 static void pim447_gpio_callback(const struct device *port, struct gpio_callback *cb, gpio_port_pins_t pins);
 static int pim447_enable_interrupt(const struct pim447_config *config, bool enable);
 
-const struct device *input_listener_dev = DEVICE_DT_GET(DT_NODELABEL(mmv_input_listener));
-
-if (!device_is_ready(input_listener_dev)) {
-    LOG_ERR("Input listener device is not ready");
-    return -ENODEV;
-}
 
 /* Work handler function */
 static void pim447_work_handler(struct k_work *work) {
@@ -118,6 +112,12 @@ static void pim447_work_handler(struct k_work *work) {
         data->sw_pressed_prev = sw_pressed;
     }
 
+const struct device *input_listener_dev = DEVICE_DT_GET(DT_NODELABEL(mmv_input_listener));
+
+if (!device_is_ready(input_listener_dev)) {
+    LOG_ERR("Input listener device is not ready");
+    return -ENODEV;
+}
 
     struct input_event input_events[2];
 
