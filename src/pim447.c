@@ -318,11 +318,6 @@ static int pim447_init(const struct device *dev) {
     return 0;
 }
 
-/* Input driver API */
-static const struct input_driver_api pim447_driver_api = {
-    .enable = pim447_enable,
-    .disable = pim447_disable,
-};
 
 /* Device configuration */
 static const struct pim447_config pim447_config = {
@@ -335,4 +330,4 @@ static struct pim447_data pim447_data;
 
 /* Device initialization macro */
 DEVICE_DT_INST_DEFINE(0, pim447_init, NULL, &pim447_data, &pim447_config,
-                      POST_KERNEL, CONFIG_INPUT_INIT_PRIORITY, &pim447_driver_api);
+                      POST_KERNEL, CONFIG_INPUT_INIT_PRIORITY, NULL);
