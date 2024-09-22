@@ -14,14 +14,6 @@ properties:
     required: true
     description: Interrupt pin
 
- 
-  x-input-code:
-    type: int
-    required: true
-  y-input-code:
-    type: int
-    required: true
-
 
   led-red-gpios:
     type: phandle-array
