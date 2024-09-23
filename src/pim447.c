@@ -87,6 +87,8 @@ static void pim447_work_handler(struct k_work *work) {
     int32_t delta_x_scaled = (delta_x_raw * scale_multiplier) / scale_divisor;
     int32_t delta_y_scaled = (delta_y_raw * scale_multiplier) / scale_divisor;
 
+    LOG_INF("Scaled data: delta_x=%d, delta_y=%d", delta_x_scaled, delta_y_scaled);
+
     /* Convert back to int16_t if necessary */
     int16_t delta_x = (int16_t)delta_x_scaled;
     int16_t delta_y = (int16_t)delta_y_scaled;
