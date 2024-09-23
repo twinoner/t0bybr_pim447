@@ -1,16 +1,8 @@
+# Copyright (c) 2021 The ZMK Contributors
 # SPDX-License-Identifier: MIT
 
-
-description: >
-  Custom behavior to adjust variables like speed_min, speed_max, etc.
+description: Custom behavior to adjust variables like speed_min, speed_max, etc.
 
 compatible: "zmk,behavior-adjust-variable"
 
-include: base.yaml
-
-properties:
-  # No additional properties
-  #binding-cells: Defines how many arguments the behavior takes when used in the keymap
-  "#binding-cells":
-    const: 0
-    type: int
+include: zero_param.yaml
