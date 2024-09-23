@@ -1,0 +1,17 @@
+# Copyright (c) 2021 The ZMK Contributors
+# SPDX-License-Identifier: MIT
+
+description: Custom behavior to adjust trackball parameters via keypresses.
+
+compatible: "behavior-trackball-adjust"
+
+include: base.yaml
+
+properties:
+  "#binding-cells":
+    const: 1
+
+  action:
+    type: int
+    required: false
+    description: The action to perform.

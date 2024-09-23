@@ -1,0 +1,15 @@
+/* SPDX-License-Identifier: MIT */
+
+#ifndef DT_BINDINGS_TRACKBALL_ACTIONS_H
+#define DT_BINDINGS_TRACKBALL_ACTIONS_H
+
+#define TB_INC_SPEED_MIN       0
+#define TB_DEC_SPEED_MIN       1
+#define TB_INC_SPEED_MAX       2
+#define TB_DEC_SPEED_MAX       3
+#define TB_INC_SCALE_DIV_MIN   4
+#define TB_DEC_SCALE_DIV_MIN   5
+#define TB_INC_SCALE_DIV_MAX   6
+#define TB_DEC_SCALE_DIV_MAX   7
+
+#endif /* DT_BINDINGS_TRACKBALL_ACTIONS_H */

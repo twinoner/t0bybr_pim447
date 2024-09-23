@@ -1,8 +1,0 @@
-# Copyright (c) 2021 The ZMK Contributors
-# SPDX-License-Identifier: MIT
-
-description: Custom behavior to adjust variables like speed_min, speed_max, etc.
-
-compatible: "zmk,behavior-adjust-variable"
-
-include: zero_param.yaml
