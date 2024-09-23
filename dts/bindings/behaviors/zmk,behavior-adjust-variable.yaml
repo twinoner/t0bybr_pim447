@@ -1,6 +1,5 @@
 # SPDX-License-Identifier: MIT
 
-title: ZMK Behavior to Adjust Variables
 
 description: >
   Custom behavior to adjust variables like speed_min, speed_max, etc.
