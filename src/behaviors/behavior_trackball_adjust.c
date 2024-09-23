@@ -1,14 +1,26 @@
 /* behavior_trackball_adjust.c */
 
+/* SPDX-License-Identifier: MIT */
+
 #include <zephyr/kernel.h>
 #include <zephyr/device.h>
+#include <zephyr/init.h>
+#include <zephyr/logging/log.h>
 #include <zmk/behavior.h>
 #include <zmk/event_manager.h>
-#include <zephyr/logging/log.h>
+#include <zmk/behavior.h>
+#include <zmk/keymap.h>
+#include <zmk/behavior.h>
+#include <zmk/behavior.h>
+#include <zmk/behavior.h>
+#include <zmk/behavior.h>
+#include <zmk/behavior.h>
+#include <zmk/behavior.h>
+#include <zmk/behavior.h>
 
 LOG_MODULE_DECLARE(zmk, CONFIG_ZMK_LOG_LEVEL);
 
-#include <dt-bindings/trackball_actions.h>
+#include "dt-bindings/trackball_actions.h"
 
 /* Extern variables */
 extern volatile float speed_min;
@@ -30,10 +42,23 @@ extern struct k_mutex variable_mutex;
 #define SPEED_STEP 0.1f
 #define SCALE_DIV_STEP 0.1f
 
-static int behavior_trackball_adjust_keymap_binding_pressed(struct zmk_behavior_binding *binding,
-                                                            struct zmk_behavior_binding_event *event)
+/* Define the driver compatibility */
+#define DT_DRV_COMPAT zmk_behavior_trackball_adjust
+
+/* Configuration and data structures */
+struct behavior_trackball_adjust_config {
+    // Add any configuration parameters if needed
+};
+
+struct behavior_trackball_adjust_data {
+    // Add any runtime data if needed
+};
+
+/* Behavior function */
+static int behavior_trackball_adjust_binding_pressed(struct zmk_behavior_binding *binding,
+                                                     struct zmk_behavior_binding_event event)
 {
-    uint32_t action = binding->parameters.u32[0];  // Get the action parameter
+    uint32_t action = binding->param1;  // Access the action parameter
 
     k_mutex_lock(&variable_mutex, K_FOREVER);
 
@@ -104,10 +129,43 @@ static int behavior_trackball_adjust_keymap_binding_pressed(struct zmk_behavior_
     return ZMK_BEHAVIOR_OPAQUE;
 }
 
+/* Optionally implement the released function if needed */
+static int behavior_trackball_adjust_binding_released(struct zmk_behavior_binding *binding,
+                                                      struct zmk_behavior_binding_event event)
+{
+    // If your behavior needs to handle key releases, implement this function
+    return ZMK_BEHAVIOR_OPAQUE;
+}
+
 /* Behavior driver API */
 static const struct behavior_driver_api behavior_trackball_adjust_driver_api = {
-    .binding_pressed = behavior_trackball_adjust_keymap_binding_pressed,
+    .binding_pressed = behavior_trackball_adjust_binding_pressed,
+    .binding_released = NULL,  // Set to NULL if not used
 };
 
-/* Register the behavior */
-ZMK_BEHAVIOR_DEFINE(trackball_adjust, behavior_trackball_adjust_driver_api);
+/* Initialization function (if needed) */
+static int behavior_trackball_adjust_init(const struct device *dev)
+{
+
+    LOG_INF("Trackball adjustment behavior initialized");
+    // Perform any initialization steps here
+    return 0;
+}
+
+/* Device instance definition */
+static struct behavior_trackball_adjust_data behavior_trackball_adjust_data;
+
+static const struct behavior_trackball_adjust_config behavior_trackball_adjust_config = {
+    // Initialize configuration if needed
+};
+
+/* Register the behavior using BEHAVIOR_DT_INST_DEFINE */
+BEHAVIOR_DT_INST_DEFINE(0,                                     // Instance number
+                        behavior_trackball_adjust_init,        // Initialization function
+                        NULL,                                  // PM control function
+                        &behavior_trackball_adjust_data,       // Data pointer
+                        &behavior_trackball_adjust_config,     // Configuration pointer
+                        APPLICATION,                           // Initialization level
+                        CONFIG_KERNEL_INIT_PRIORITY_DEFAULT,   // Initialization priority
+                        &behavior_trackball_adjust_driver_api  // Driver API pointer
+);
