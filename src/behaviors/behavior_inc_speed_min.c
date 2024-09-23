@@ -1,8 +1,7 @@
-/* behavior_inc_speed_min.c */
-
 #include <zephyr/kernel.h>
 #include <zephyr/device.h>
 #include <zmk/behavior.h>
+#include <zmk/event_manager.h>
 #include <zephyr/logging/log.h>
 
 LOG_MODULE_DECLARE(zmk, CONFIG_ZMK_LOG_LEVEL);
@@ -17,31 +16,30 @@ extern struct k_mutex variable_mutex;
 #define SPEED_STEP 0.1f
 
 /* Increase function */
-static int on_inc_speed_min(struct zmk_behavior_binding *binding,
-                            struct zmk_behavior_binding_event event)
+static int behavior_inc_speed_min_keymap_binding_pressed(struct zmk_behavior_binding *binding,
+                                                         struct zmk_behavior_binding_event *event)
 {
-    if (event.press) {
-        k_mutex_lock(&variable_mutex, K_FOREVER);
 
-        speed_min += SPEED_STEP;
-        if (speed_min > SPEED_MIN_MAX) {
-            speed_min = SPEED_MIN_MAX;
-        }
+        LOG_INF("behavior_inc_speed_min_keymap_binding_pressed called");
 
-        LOG_INF("speed_min increased to %f", (double)speed_min);
+    k_mutex_lock(&variable_mutex, K_FOREVER);
 
-        k_mutex_unlock(&variable_mutex);
+    speed_min += SPEED_STEP;
+    if (speed_min > SPEED_MIN_MAX) {
+        speed_min = SPEED_MIN_MAX;
     }
-    return ZMK_BEHAVIOR_OPAQUE;
 
+    LOG_INF("speed_min increased to %f", (double)speed_min);
+
+    k_mutex_unlock(&variable_mutex);
+
+    return ZMK_BEHAVIOR_OPAQUE;
 }
 
 /* Behavior driver API */
-static const struct behavior_driver_api behavior_inc_api = {
-    .binding_pressed = on_inc_speed_min,
+static const struct behavior_driver_api behavior_inc_speed_min_driver_api = {
+    .binding_pressed = behavior_inc_speed_min_keymap_binding_pressed,
 };
 
-/* Device registration */
-DEVICE_DT_INST_DEFINE(DT_NODELABEL(inc_speed_min), NULL, NULL, NULL, NULL,
-                      APPLICATION, CONFIG_KERNEL_INIT_PRIORITY_DEFAULT,
-                      &behavior_inc_api);
+/* Register the behavior */
+ZMK_BEHAVIOR_DEFINE(inc_speed_min, behavior_inc_speed_min_driver_api);
