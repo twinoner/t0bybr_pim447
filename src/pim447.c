@@ -37,6 +37,15 @@
 #define MSK_INT_TRIGGERED   0b00000001
 #define MSK_INT_OUT_EN      0b00000010
 
+/* Exposed variables */
+volatile float speed_min = 1.0f;
+volatile float speed_max = 5.0f;
+volatile float scale_divisor_min = 1.0f;
+volatile float scale_divisor_max = 2.0f;
+
+/* Mutex for thread safety */
+K_MUTEX_DEFINE(variable_mutex);
+
 LOG_MODULE_REGISTER(pim447, LOG_LEVEL_DBG);
 
 /* Device configuration structure */
@@ -80,7 +89,7 @@ static void pim447_work_handler(struct k_work *work) {
             buf[0], buf[1], buf[2], buf[3], buf[4]);
 
 
- // Calculate movement deltas
+    // Calculate movement deltas
     int16_t delta_x_raw = (int16_t)buf[1] - (int16_t)buf[0]; // Right - Left
     int16_t delta_y_raw = (int16_t)buf[3] - (int16_t)buf[2]; // Down - Up
 
@@ -90,13 +99,10 @@ static void pim447_work_handler(struct k_work *work) {
 
     LOG_INF("Speed: %f", speed);
 
-    // Define thresholds and scaling limits
-    float speed_min = 0.0f;  // Adjust as needed
-    float speed_max = 10.0f; // Adjust based on testing
-    float scale_divisor_min = 1.0f;
-    float scale_divisor_max = 2.0f; // Maximum divisor at slow speed
+     /* Lock the mutex before accessing shared variables */
+    k_mutex_lock(&variable_mutex, K_FOREVER);
 
-    // Clamp speed to [speed_min, speed_max]
+    /* Clamp speed to [speed_min, speed_max] */
     if (speed < speed_min) {
         speed = speed_min;
     }
@@ -104,16 +110,19 @@ static void pim447_work_handler(struct k_work *work) {
         speed = speed_max;
     }
 
-    // Calculate the scaling factor based on speed
-    float scale_divisor = scale_divisor_max - ((speed - speed_min) / (speed_max - speed_min)) * (scale_divisor_max - scale_divisor_min);
+    /* Calculate the scaling factor based on speed */
+    float scale_divisor = scale_divisor_max - ((speed - speed_min) /
+        (speed_max - speed_min)) * (scale_divisor_max - scale_divisor_min);
 
-    // Ensure scale_divisor is within valid range
+    /* Ensure scale_divisor is within valid range */
     if (scale_divisor < scale_divisor_min) {
         scale_divisor = scale_divisor_min;
     }
     if (scale_divisor > scale_divisor_max) {
         scale_divisor = scale_divisor_max;
     }
+
+    k_mutex_unlock(&variable_mutex);
 
     // Apply scaling
     float delta_x_scaled = delta_x_raw / scale_divisor;
