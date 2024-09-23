@@ -20,7 +20,7 @@ extern struct k_mutex variable_mutex;
 static int on_dec_speed_max(struct zmk_behavior_binding *binding,
                             struct zmk_behavior_binding_event event)
 {
-    if (event.position != ZMK_POSITION_STATE_RELEASED) {
+    if (event.press) {
         k_mutex_lock(&variable_mutex, K_FOREVER);
 
         speed_max -= SPEED_STEP;
@@ -32,7 +32,8 @@ static int on_dec_speed_max(struct zmk_behavior_binding *binding,
 
         k_mutex_unlock(&variable_mutex);
     }
-    return 0;
+    return ZMK_BEHAVIOR_OPAQUE;
+
 }
 
 /* Behavior driver API */
@@ -41,6 +42,6 @@ static const struct behavior_driver_api behavior_dec_api = {
 };
 
 /* Device registration */
-DEVICE_DT_INST_DEFINE(0, NULL, NULL, NULL, NULL,
+DEVICE_DT_INST_DEFINE(DT_NODELABEL(dec_speed_max), NULL, NULL, NULL, NULL,
                       APPLICATION, CONFIG_KERNEL_INIT_PRIORITY_DEFAULT,
                       &behavior_dec_api);
