@@ -88,11 +88,13 @@ static void pim447_work_handler(struct k_work *work) {
     // Calculate the speed (movement magnitude)
     float speed = sqrt(delta_x_raw * delta_x_raw + delta_y_raw * delta_y_raw);
 
+    LOG_INF("Speed: %f", speed);
+
     // Define thresholds and scaling limits
     float speed_min = 0.0f;  // Adjust as needed
     float speed_max = 10.0f; // Adjust based on testing
     float scale_divisor_min = 1.0f;
-    float scale_divisor_max = 4.0f; // Maximum divisor at slow speed
+    float scale_divisor_max = 2.0f; // Maximum divisor at slow speed
 
     // Clamp speed to [speed_min, speed_max]
     if (speed < speed_min) {
