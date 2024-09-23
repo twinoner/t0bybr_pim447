@@ -5,11 +5,12 @@ description: Custom behavior to adjust trackball parameters via keypresses.
 
 compatible: "zmk,behavior-trackball-adjust"
 
-include: base.yaml
+include: zero_param.yaml
 
 properties:
   "#binding-cells":
     const: 1
+    type: int
 
   action:
     type: int
