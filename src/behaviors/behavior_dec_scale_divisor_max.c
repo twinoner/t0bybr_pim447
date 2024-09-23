@@ -20,7 +20,7 @@ extern struct k_mutex variable_mutex;
 static int on_dec_scale_divisor_max(struct zmk_behavior_binding *binding,
                                     struct zmk_behavior_binding_event event)
 {
-    if (event.press) {
+
         k_mutex_lock(&variable_mutex, K_FOREVER);
 
         scale_divisor_max -= SCALE_DIVISOR_STEP;
@@ -33,7 +33,6 @@ static int on_dec_scale_divisor_max(struct zmk_behavior_binding *binding,
         k_mutex_unlock(&variable_mutex);
     }
     return ZMK_BEHAVIOR_OPAQUE;
-}
 
 /* Behavior driver API */
 static const struct behavior_driver_api behavior_dec_api = {
