@@ -3,7 +3,7 @@
 
 description: Custom behavior to adjust trackball parameters via keypresses.
 
-compatible: "behavior-trackball-adjust"
+compatible: "zmk,behavior-trackball-adjust"
 
 include: base.yaml
 
