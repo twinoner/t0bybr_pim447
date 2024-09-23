@@ -13,3 +13,4 @@ properties:
   #binding-cells: Defines how many arguments the behavior takes when used in the keymap
   "#binding-cells":
     const: 0
+    type: int
