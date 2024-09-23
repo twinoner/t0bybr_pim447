@@ -81,7 +81,7 @@ static void pim447_work_handler(struct k_work *work) {
     int32_t delta_y_raw = (int32_t)buf[3] - (int32_t)buf[2];
 
     int32_t scale_multiplier = 1;
-    int32_t scale_divisor = 1; // Adjust these values as needed
+    int32_t scale_divisor = 3; // Adjust these values as needed
 
     /* Apply scaling */
     int32_t delta_x_scaled = (delta_x_raw * scale_multiplier) / scale_divisor;
