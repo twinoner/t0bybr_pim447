@@ -8,6 +8,8 @@
 #include <zephyr/drivers/gpio.h>
 #include <zephyr/kernel.h>
 #include <zephyr/logging/log.h>
+#include <math.h>
+
 
 /* Register Addresses */
 #define REG_LED_RED     0x00
@@ -77,25 +79,51 @@ static void pim447_work_handler(struct k_work *work) {
     LOG_INF("Raw data: LEFT=%d, RIGHT=%d, UP=%d, DOWN=%d, SWITCH=0x%02X",
             buf[0], buf[1], buf[2], buf[3], buf[4]);
 
-    int32_t delta_x_raw = (int32_t)buf[1] - (int32_t)buf[0];
-    int32_t delta_y_raw = (int32_t)buf[3] - (int32_t)buf[2];
 
-    int32_t scale_multiplier = 1;
-    int32_t scale_divisor = 3; // Adjust these values as needed
+ // Calculate movement deltas
+    int16_t delta_x_raw = (int16_t)buf[1] - (int16_t)buf[0]; // Right - Left
+    int16_t delta_y_raw = (int16_t)buf[3] - (int16_t)buf[2]; // Down - Up
 
-    /* Apply scaling */
-    int32_t delta_x_scaled = (delta_x_raw * scale_multiplier) / scale_divisor;
-    int32_t delta_y_scaled = (delta_y_raw * scale_multiplier) / scale_divisor;
 
-    LOG_INF("Scaled data: delta_x=%d, delta_y=%d", delta_x_scaled, delta_y_scaled);
+    // Calculate the speed (movement magnitude)
+    float speed = sqrt(delta_x_raw * delta_x_raw + delta_y_raw * delta_y_raw);
 
-    /* Convert back to int16_t if necessary */
+    // Define thresholds and scaling limits
+    float speed_min = 0.0f;  // Adjust as needed
+    float speed_max = 10.0f; // Adjust based on testing
+    float scale_divisor_min = 1.0f;
+    float scale_divisor_max = 4.0f; // Maximum divisor at slow speed
+
+    // Clamp speed to [speed_min, speed_max]
+    if (speed < speed_min) {
+        speed = speed_min;
+    }
+    if (speed > speed_max) {
+        speed = speed_max;
+    }
+
+    // Calculate the scaling factor based on speed
+    float scale_divisor = scale_divisor_max - ((speed - speed_min) / (speed_max - speed_min)) * (scale_divisor_max - scale_divisor_min);
+
+    // Ensure scale_divisor is within valid range
+    if (scale_divisor < scale_divisor_min) {
+        scale_divisor = scale_divisor_min;
+    }
+    if (scale_divisor > scale_divisor_max) {
+        scale_divisor = scale_divisor_max;
+    }
+
+    // Apply scaling
+    float delta_x_scaled = delta_x_raw / scale_divisor;
+    float delta_y_scaled = delta_y_raw / scale_divisor;
+
+    // Convert to integers for reporting
     int16_t delta_x = (int16_t)delta_x_scaled;
     int16_t delta_y = (int16_t)delta_y_scaled;
 
-    /* Calculate movement deltas */
-    // int16_t delta_x = (int16_t)buf[1] - (int16_t)buf[0]; // Right - Left
-    // int16_t delta_y = (int16_t)buf[3] - (int16_t)buf[2]; // Down - Up
+
+
+
     bool sw_pressed = (buf[4] & MSK_SWITCH_STATE) != 0;
 
     int err;
