@@ -120,7 +120,7 @@ static int behavior_trackball_adjust_binding_pressed(struct zmk_behavior_binding
 
     k_mutex_unlock(&variable_mutex);
 
-    return ZMK_BEHAVIOR_OPAQUE;
+    return 0;
 }
 
 /* Optionally implement the released function if needed */
@@ -128,7 +128,7 @@ static int behavior_trackball_adjust_binding_released(struct zmk_behavior_bindin
                                                       struct zmk_behavior_binding_event event)
 {
     // If your behavior needs to handle key releases, implement this function
-    return ZMK_BEHAVIOR_OPAQUE;
+    return 0;
 }
 
 /* Behavior driver API */
