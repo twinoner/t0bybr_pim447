@@ -10,13 +10,6 @@
 #include <zmk/event_manager.h>
 #include <zmk/behavior.h>
 #include <zmk/keymap.h>
-#include <zmk/behavior.h>
-#include <zmk/behavior.h>
-#include <zmk/behavior.h>
-#include <zmk/behavior.h>
-#include <zmk/behavior.h>
-#include <zmk/behavior.h>
-#include <zmk/behavior.h>
 
 LOG_MODULE_DECLARE(zmk, CONFIG_ZMK_LOG_LEVEL);
 
@@ -148,6 +141,7 @@ static int behavior_trackball_adjust_init(const struct device *dev)
 {
 
     LOG_INF("Trackball adjustment behavior initialized");
+    
     // Perform any initialization steps here
     return 0;
 }
@@ -165,7 +159,7 @@ BEHAVIOR_DT_INST_DEFINE(0,                                     // Instance numbe
                         NULL,                                  // PM control function
                         &behavior_trackball_adjust_data,       // Data pointer
                         &behavior_trackball_adjust_config,     // Configuration pointer
-                        APPLICATION,                           // Initialization level
+                        POST_KERNEL,                           // Initialization level
                         CONFIG_KERNEL_INIT_PRIORITY_DEFAULT,   // Initialization priority
                         &behavior_trackball_adjust_driver_api  // Driver API pointer
 );
