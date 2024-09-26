@@ -93,7 +93,7 @@ static void pim447_work_handler(struct k_work *work) {
     int16_t delta_x_raw = (int16_t)buf[1] - (int16_t)buf[0]; // Right - Left
     int16_t delta_y_raw = (int16_t)buf[3] - (int16_t)buf[2]; // Down - Up
 
-    log_inf("Calculated data: delta_x_raw=%d, delta_y_raw=%d", delta_x_raw, delta_y_raw);
+    LOG_INF("Calculated data: delta_x_raw=%d, delta_y_raw=%d", delta_x_raw, delta_y_raw);
 
     // Calculate the speed (movement magnitude)
     int16_t speed = sqrt(delta_x_raw * delta_x_raw + delta_y_raw * delta_y_raw);
