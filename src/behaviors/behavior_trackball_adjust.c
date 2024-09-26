@@ -2,6 +2,8 @@
 
 /* SPDX-License-Identifier: MIT */
 
+#include <stdio.h>
+
 #include <zephyr/kernel.h>
 #include <drivers/behavior.h>
 
@@ -62,7 +64,8 @@ static int behavior_trackball_adjust_binding_pressed(struct zmk_behavior_binding
         if (speed_min > SPEED_MIN_MAX) {
             speed_min = SPEED_MIN_MAX;
         }
-        LOG_INF("speed_min increased to %f", (double)speed_min);
+        snprintf(float_str, sizeof(float_str), "%f", speed_min);
+        LOG_INF("speed_min increased to %s", float_str);
         break;
     case TB_DEC_SPEED_MIN:
         speed_min -= SPEED_STEP;
