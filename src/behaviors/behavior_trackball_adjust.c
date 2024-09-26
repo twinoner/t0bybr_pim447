@@ -64,7 +64,8 @@ static int behavior_trackball_adjust_binding_pressed(struct zmk_behavior_binding
         if (speed_min > SPEED_MIN_MAX) {
             speed_min = SPEED_MIN_MAX;
         }
-        int result = snprintf(float_str, sizeof(float_str), "%f", speed_min);
+        char float_str[16]; 
+int result = snprintf(float_str, sizeof(float_str), "%f", speed_min);
 if (result < 0 || result >= sizeof(float_str)) {
     // Handle error: conversion failed or buffer too small
     LOG_ERR("Error converting speed_min to string");
