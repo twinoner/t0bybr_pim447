@@ -64,6 +64,7 @@ static int behavior_trackball_adjust_binding_pressed(struct zmk_behavior_binding
         if (speed_min > SPEED_MIN_MAX) {
             speed_min = SPEED_MIN_MAX;
         }
+        char float_str[16]; 
         snprintf(float_str, sizeof(float_str), "%f", speed_min);
         LOG_INF("speed_min increased to %s", float_str);
         break;
