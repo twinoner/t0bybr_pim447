@@ -93,11 +93,12 @@ static void pim447_work_handler(struct k_work *work) {
     int16_t delta_x_raw = (int16_t)buf[1] - (int16_t)buf[0]; // Right - Left
     int16_t delta_y_raw = (int16_t)buf[3] - (int16_t)buf[2]; // Down - Up
 
+    log_inf("Calculated data: delta_x_raw=%d, delta_y_raw=%d", delta_x_raw, delta_y_raw);
 
     // Calculate the speed (movement magnitude)
-    float speed = sqrt(delta_x_raw * delta_x_raw + delta_y_raw * delta_y_raw);
+    int16_t speed = sqrt(delta_x_raw * delta_x_raw + delta_y_raw * delta_y_raw);
 
-    LOG_INF("Speed: %f", speed);
+    LOG_INF("Speed: %d", speed);
 
      /* Lock the mutex before accessing shared variables */
     k_mutex_lock(&variable_mutex, K_FOREVER);
@@ -111,7 +112,7 @@ static void pim447_work_handler(struct k_work *work) {
     }
 
     /* Calculate the scaling factor based on speed */
-    float scale_divisor = scale_divisor_max - ((speed - speed_min) /
+    int16_t scale_divisor = scale_divisor_max - ((speed - speed_min) /
         (speed_max - speed_min)) * (scale_divisor_max - scale_divisor_min);
 
     /* Ensure scale_divisor is within valid range */
@@ -125,8 +126,8 @@ static void pim447_work_handler(struct k_work *work) {
     k_mutex_unlock(&variable_mutex);
 
     // Apply scaling
-    float delta_x_scaled = delta_x_raw / scale_divisor;
-    float delta_y_scaled = delta_y_raw / scale_divisor;
+    int16_t delta_x_scaled = delta_x_raw / scale_divisor;
+    int16_t delta_y_scaled = delta_y_raw / scale_divisor;
 
     // Convert to integers for reporting
     int16_t delta_x = (int16_t)delta_x_scaled;
