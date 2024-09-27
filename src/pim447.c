@@ -209,8 +209,9 @@ static void process_direction(struct k_work *work) {
     LOG_DBG("Processed direction %d: value=%.2f, timestamp=%u", data->dir, scaled_value, data->timestamp);
 }
 
-static void report_movement(struct k_work *work) {
-    struct pim447_data *data = CONTAINER_OF(work, struct pim447_data, work);
+static void report_movement(struct k_work *work)
+{
+    struct pim447_data *data = CONTAINER_OF(work, struct pim447_data, work.work);
     int32_t x_movement, y_movement;
 
     k_sem_take(&data->movement_sem, K_FOREVER);
@@ -227,7 +228,7 @@ static void report_movement(struct k_work *work) {
     }
 
     // Schedule next report
-    k_work_schedule_for_queue(data->trackball_workq, &data->work, K_MSEC(10));
+    k_work_schedule(&data->work, K_MSEC(10));
 }
 
 static void pim447_work_handler(struct k_work *work) {
@@ -532,6 +533,7 @@ static int pim447_init(const struct device *dev) {
 
     /* Schedule first movement report */
     k_work_schedule_for_queue(data->trackball_workq, &data->work, K_MSEC(10));
+    
 
     LOG_INF("PIM447 driver initialized");
 
