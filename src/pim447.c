@@ -231,8 +231,9 @@ static void report_movement(struct k_work *work)
     k_work_schedule(&data->work, K_MSEC(10));
 }
 
-static void pim447_work_handler(struct k_work *work) {
-    struct pim447_data *data = CONTAINER_OF(work, struct pim447_data, work);
+static void pim447_work_handler(struct k_work *work)
+{
+    struct pim447_data *data = CONTAINER_OF(work, struct pim447_data, work.work);
     const struct pim447_config *config = data->dev->config;
     const struct device *dev = data->dev;
 
@@ -341,13 +342,14 @@ static void calibrate_trackball(struct pim447_data *data) {
     LOG_INF("Trackball calibration complete");
 }
 
-static void pim447_gpio_callback(const struct device *port, struct gpio_callback *cb, gpio_port_pins_t pins) {
+static void pim447_gpio_callback(const struct device *port, struct gpio_callback *cb, gpio_port_pins_t pins)
+{
     struct pim447_data *data = CONTAINER_OF(cb, struct pim447_data, int_gpio_cb);
     const struct pim447_config *config = data->dev->config;
 
     LOG_INF("GPIO callback triggered on pin %d", config->int_gpio.pin);
 
-    k_work_submit(&data->work);
+    k_work_submit(&data->work.work);
 }
 
 static int pim447_enable_interrupt(const struct pim447_config *config, bool enable) {
