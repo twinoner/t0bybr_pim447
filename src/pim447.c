@@ -67,6 +67,34 @@ static void pim447_work_handler(struct k_work *work);
 static void pim447_gpio_callback(const struct device *port, struct gpio_callback *cb, gpio_port_pins_t pins);
 static int pim447_enable_interrupt(const struct pim447_config *config, bool enable);
 
+static int32_t convert_speed(int32_t value)
+{
+    bool negative = (value < 0);
+
+    if (negative) {
+        value = -value;
+    }
+
+    switch (value) {
+        case 0:  value = 0;   break;
+        case 1:  value = 1;   break;
+        case 2:  value = 4;   break;
+        case 3:  value = 8;   break;
+        case 4:  value = 18;  break;
+        case 5:  value = 32;  break;
+        case 6:  value = 50;  break;
+        case 7:  value = 72;  break;
+        case 8:  value = 98;  break;
+        default: value = 127; break;
+    }
+
+    if (negative) {
+        value = -value;
+    }
+
+    return value;
+}
+
 /* Work handler function */
 static void pim447_work_handler(struct k_work *work) {
     struct pim447_data *data = CONTAINER_OF(work, struct pim447_data, work);
@@ -90,50 +118,11 @@ static void pim447_work_handler(struct k_work *work) {
 
 
     // Calculate movement deltas
-    int16_t delta_x_raw = (int16_t)buf[1] - (int16_t)buf[0]; // Right - Left
-    int16_t delta_y_raw = (int16_t)buf[3] - (int16_t)buf[2]; // Down - Up
+    int32_t delta_x_raw = (int32_t)buf[1] - (int32_t)buf[0]; // Right - Left
+    int32_t delta_y_raw = (int32_t)buf[3] - (int32_t)buf[2]; // Down - Up
 
-    
-
-    // Calculate the speed (movement magnitude)
-    float speed = sqrt(delta_x_raw * delta_x_raw + delta_y_raw * delta_y_raw);
-
-    LOG_INF("Speed: %f", speed);
-
-     /* Lock the mutex before accessing shared variables */
-    k_mutex_lock(&variable_mutex, K_FOREVER);
-
-    /* Clamp speed to [speed_min, speed_max] */
-    if (speed < speed_min) {
-        speed = speed_min;
-    }
-    if (speed > speed_max) {
-        speed = speed_max;
-    }
-
-    /* Calculate the scaling factor based on speed */
-    float scale_divisor = scale_divisor_max - ((speed - speed_min) /
-        (speed_max - speed_min)) * (scale_divisor_max - scale_divisor_min);
-
-    /* Ensure scale_divisor is within valid range */
-    if (scale_divisor < scale_divisor_min) {
-        scale_divisor = scale_divisor_min;
-    }
-    if (scale_divisor > scale_divisor_max) {
-        scale_divisor = scale_divisor_max;
-    }
-
-    k_mutex_unlock(&variable_mutex);
-
-    // Apply scaling
-    float delta_x_scaled = delta_x_raw / scale_divisor;
-    float delta_y_scaled = delta_y_raw / scale_divisor;
-
-    // Convert to integers for reporting
-    int16_t delta_x = (int16_t)delta_x_scaled;
-    int16_t delta_y = (int16_t)delta_y_scaled;
-
-
+    int32_t delta_x = convert_speed(delta_x_raw);
+    int32_t delta_y = convert_speed(delta_y_raw);
 
 
     bool sw_pressed = (buf[4] & MSK_SWITCH_STATE) != 0;
