@@ -132,10 +132,6 @@ static int pim447_init(const struct device *dev)
     return 0;
 }
 
-static const struct input_interface_api pim447_input_api = {
-    /* The PIM447 doesn't require any specific input API functions */
-};
-
 /* Device configuration */
 static const struct pim447_config pim447_config = {
     .i2c = I2C_DT_SPEC_INST_GET(0),
@@ -147,4 +143,4 @@ static struct pim447_data pim447_data;
 
 /* Device initialization macro */
 DEVICE_DT_INST_DEFINE(0, pim447_init, NULL, &pim447_data, &pim447_config,
-                      POST_KERNEL, CONFIG_INPUT_INIT_PRIORITY, &pim447_input_api);
+                      POST_KERNEL, CONFIG_INPUT_INIT_PRIORITY, NULL);
