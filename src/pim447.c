@@ -50,7 +50,6 @@ LOG_MODULE_REGISTER(pim447, LOG_LEVEL_DBG);
 
 #define MOVE_FACTOR    DT_PROP(DT_INST(0, pimoroni_pim447), move_factor);
 
-LOG_INF("MOVE_FACTOR: %d", MOVE_FACTOR);
 
 
 /* Device configuration structure */
@@ -74,7 +73,7 @@ static int pim447_enable_interrupt(const struct pim447_config *config, bool enab
 
 static int32_t convert_speed(int32_t value)
 {
-
+    LOG_INF("MOVE_FACTOR: %d", MOVE_FACTOR);
     LOG_INF("Converting speed: %d", value);
 
     bool negative = (value < 0);
