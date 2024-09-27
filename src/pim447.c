@@ -38,8 +38,8 @@
 #define MSK_INT_TRIGGERED   0b00000001
 #define MSK_INT_OUT_EN      0b00000010
 
-#define ACCUMULATION_THRESHOLD 15
-#define SCALE_FACTOR 2.5f
+#define ACCUMULATION_THRESHOLD 30
+#define SCALE_FACTOR 7.5f
 
 /* Exposed variables */
 volatile float speed_min = 1.0f;
