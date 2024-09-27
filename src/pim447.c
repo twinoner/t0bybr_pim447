@@ -58,13 +58,13 @@ static void process_direction(struct k_work *work)
 
     /* Report movement if non-zero */
     if (value != 0) {
-        struct input_event evt = {
-            .type = INPUT_EV_REL,
-            .code = data->input_code,
-            .value = (int32_t)((int8_t)value)
-        };
-        input_report(data->dev, &evt, 1, K_NO_WAIT);
-        LOG_DBG("Reported movement: dir=%d, value=%d", data->input_code, (int8_t)value);
+        ret = input_report(data->dev, INPUT_EV_REL, data->input_code, 
+                           (int32_t)((int8_t)value), true, K_NO_WAIT);
+        if (ret) {
+            LOG_ERR("Failed to report input: %d", ret);
+        } else {
+            LOG_DBG("Reported movement: dir=%d, value=%d", data->input_code, (int8_t)value);
+        }
     }
 
     /* Clear direction register */
