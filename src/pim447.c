@@ -32,7 +32,7 @@ struct direction_data {
     uint8_t reg;
     int8_t value;
     uint16_t input_code;
-    struct k_work work;  // Add this line
+    struct k_work work;
 };
 
 /* Device data structure */
@@ -58,11 +58,7 @@ static void process_direction(struct k_work *work)
 
     /* Report movement if non-zero */
     if (value != 0) {
-        struct input_event event;
-        event.type = INPUT_EV_REL;
-        event.code = data->input_code;
-        event.value = (int16_t)((int8_t)value);
-        input_report(data->dev, &event, 1, K_NO_WAIT);
+        input_report(data->dev, INPUT_EV_REL, data->input_code, (int32_t)((int8_t)value));
         LOG_DBG("Reported movement: dir=%d, value=%d", data->input_code, (int8_t)value);
     }
 
