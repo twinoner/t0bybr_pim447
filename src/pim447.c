@@ -48,6 +48,11 @@ K_MUTEX_DEFINE(variable_mutex);
 
 LOG_MODULE_REGISTER(pim447, LOG_LEVEL_DBG);
 
+#define MOVE_FACTOR    DT_PROP(DT_INST(0, pimoroni_pim447), move_factor);
+
+LOG_INF("MOVE_FACTOR: %d", MOVE_FACTOR);
+
+
 /* Device configuration structure */
 struct pim447_config {
     struct i2c_dt_spec i2c;
@@ -69,6 +74,9 @@ static int pim447_enable_interrupt(const struct pim447_config *config, bool enab
 
 static int32_t convert_speed(int32_t value)
 {
+
+    LOG_INF("Converting speed: %d", value);
+
     bool negative = (value < 0);
 
     if (negative) {
@@ -123,8 +131,8 @@ static void pim447_work_handler(struct k_work *work) {
     int32_t delta_x_raw = (int32_t)buf[1] - (int32_t)buf[0]; // Right - Left
     int32_t delta_y_raw = (int32_t)buf[3] - (int32_t)buf[2]; // Down - Up
 
-    int32_t delta_x = convert_speed(delta_x_raw);
-    int32_t delta_y = convert_speed(delta_y_raw);
+    int32_t delta_x = convert_speed(delta_x_raw) * MOVE_FACTOR;
+    int32_t delta_y = convert_speed(delta_y_raw) * MOVE_FACTOR;
 
 
     bool sw_pressed = (buf[4] & MSK_SWITCH_STATE) != 0;
