@@ -138,6 +138,8 @@ static void pim447_work_handler(struct k_work *work) {
 
         LOG_INF("Reporting movement: delta_x=%d, delta_y=%d", report_x, report_y);
 
+        int err;
+
         /* Report relative X movement */
         err = input_report_rel(dev, INPUT_REL_X, report_x, true, K_NO_WAIT);
         if (err) {
