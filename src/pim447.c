@@ -38,25 +38,17 @@
 #define MSK_INT_TRIGGERED   0b00000001
 #define MSK_INT_OUT_EN      0b00000010
 
-#define ACCUMULATION_THRESHOLD 30
-#define BASE_SCALE_FACTOR 0.5f
-#define EXPONENTIAL_FACTOR 2.0f
-#define SMOOTHING_FACTOR 0.7f
-#define REPORT_INTERVAL_MS 10
-
 /* Exposed variables */
-volatile float speed_min = 1.0f;
-volatile float speed_max = 5.0f;
-volatile float scale_divisor_min = 1.0f;
-volatile float scale_divisor_max = 2.0f;
+volatile uint8_t ACCUMULATION_THRESHOLD 30;
+volatile float BASE_SCALE_FACTOR 0.5f;
+volatile float EXPONENTIAL_FACTOR 2.0f;
+volatile float SMOOTHING_FACTOR 0.7f;
+volatile uint8_t REPORT_INTERVAL_MS 10;
 
 /* Mutex for thread safety */
 K_MUTEX_DEFINE(variable_mutex);
 
 LOG_MODULE_REGISTER(pim447, LOG_LEVEL_DBG);
-
-
-
 
 /* Device configuration structure */
 struct pim447_config {

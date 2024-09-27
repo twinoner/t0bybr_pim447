@@ -18,24 +18,24 @@ LOG_MODULE_DECLARE(zmk, CONFIG_ZMK_LOG_LEVEL);
 #include "dt-bindings/trackball_actions.h"
 
 /* Extern variables */
-extern volatile float speed_min;
-extern volatile float speed_max;
-extern volatile float scale_divisor_min;
-extern volatile float scale_divisor_max;
+volatile uint8_t ACCUMULATION_THRESHOLD;
+volatile float BASE_SCALE_FACTOR;
+volatile float EXPONENTIAL_FACTOR;
+volatile float SMOOTHING_FACTOR;
+volatile uint8_t REPORT_INTERVAL_MS;
 extern struct k_mutex variable_mutex;
 
 /* Constants for limits and steps */
-#define SPEED_MIN_MIN 0.1f
-#define SPEED_MIN_MAX 10.0f
-#define SPEED_MAX_MIN 0.1f
-#define SPEED_MAX_MAX 20.0f
-#define SCALE_DIV_MIN_MIN 0.1f
-#define SCALE_DIV_MIN_MAX 5.0f
-#define SCALE_DIV_MAX_MIN 0.1f
-#define SCALE_DIV_MAX_MAX 5.0f
+#define BASE_SCALE_STEP 0.1f
+#define EXPONENTIAL_STEP 0.1f
+#define SMOOTHING_STEP 0.05f
 
-#define SPEED_STEP 0.1f
-#define SCALE_DIV_STEP 0.1f
+#define BASE_SCALE_MIN 0.5f
+#define BASE_SCALE_MAX 20.0f
+#define EXPONENTIAL_MIN 1.0f
+#define EXPONENTIAL_MAX 5.0f
+#define SMOOTHING_MIN 0.1f
+#define SMOOTHING_MAX 2.0f
 
 /* Define the driver compatibility */
 #define DT_DRV_COMPAT zmk_behavior_trackball_adjust
@@ -49,6 +49,7 @@ struct behavior_trackball_adjust_data {
     // Add any runtime data if needed
 };
 
+
 /* Behavior function */
 static int behavior_trackball_adjust_binding_pressed(struct zmk_behavior_binding *binding,
                                                      struct zmk_behavior_binding_event event)
@@ -58,65 +59,57 @@ static int behavior_trackball_adjust_binding_pressed(struct zmk_behavior_binding
     k_mutex_lock(&variable_mutex, K_FOREVER);
 
     switch (action) {
-    case TB_INC_SPEED_MIN:
-        speed_min += SPEED_STEP;
-        if (speed_min > SPEED_MIN_MAX) {
-            speed_min = SPEED_MIN_MAX;
-        }
-        LOG_INF("speed_min increased to %f", (double)speed_min);
-        break;
-    case TB_DEC_SPEED_MIN:
-        speed_min -= SPEED_STEP;
-        if (speed_min < SPEED_MIN_MIN) {
-            speed_min = SPEED_MIN_MIN;
-        }
-        LOG_INF("speed_min decreased to %f", (double)speed_min);
-        break;
-    case TB_INC_SPEED_MAX:
-        speed_max += SPEED_STEP;
-        if (speed_max > SPEED_MAX_MAX) {
-            speed_max = SPEED_MAX_MAX;
-        }
-        LOG_INF("speed_max increased to %f", (double)speed_max);
-        break;
-    case TB_DEC_SPEED_MAX:
-        speed_max -= SPEED_STEP;
-        if (speed_max < SPEED_MAX_MIN) {
-            speed_max = SPEED_MAX_MIN;
-        }
-        LOG_INF("speed_max decreased to %f", (double)speed_max);
-        break;
-    case TB_INC_SCALE_DIV_MIN:
-        scale_divisor_min += SCALE_DIV_STEP;
-        if (scale_divisor_min > SCALE_DIV_MIN_MAX) {
-            scale_divisor_min = SCALE_DIV_MIN_MAX;
-        }
-        LOG_INF("scale_divisor_min increased to %f", (double)scale_divisor_min);
-        break;
-    case TB_DEC_SCALE_DIV_MIN:
-        scale_divisor_min -= SCALE_DIV_STEP;
-        if (scale_divisor_min < SCALE_DIV_MIN_MIN) {
-            scale_divisor_min = SCALE_DIV_MIN_MIN;
-        }
-        LOG_INF("scale_divisor_min decreased to %f", (double)scale_divisor_min);
-        break;
-    case TB_INC_SCALE_DIV_MAX:
-        scale_divisor_max += SCALE_DIV_STEP;
-        if (scale_divisor_max > SCALE_DIV_MAX_MAX) {
-            scale_divisor_max = SCALE_DIV_MAX_MAX;
-        }
-        LOG_INF("scale_divisor_max increased to %f", (double)scale_divisor_max);
-        break;
-    case TB_DEC_SCALE_DIV_MAX:
-        scale_divisor_max -= SCALE_DIV_STEP;
-        if (scale_divisor_max < SCALE_DIV_MAX_MIN) {
-            scale_divisor_max = SCALE_DIV_MAX_MIN;
-        }
-        LOG_INF("scale_divisor_max decreased to %f", (double)scale_divisor_max);
-        break;
-    default:
-        LOG_WRN("Unknown trackball adjustment action: %d", action);
-        break;
+        case TB_INC_BASE_SCALE:
+            BASE_SCALE_FACTOR += BASE_SCALE_STEP;
+            if (BASE_SCALE_FACTOR > BASE_SCALE_MAX) {
+                BASE_SCALE_FACTOR = BASE_SCALE_MAX;
+            }
+            LOG_INF("BASE_SCALE_FACTOR increased to %d.%02d", 
+                    (int)BASE_SCALE_FACTOR, (int)(BASE_SCALE_FACTOR * 100) % 100);
+            break;
+        case TB_DEC_BASE_SCALE:
+            BASE_SCALE_FACTOR -= BASE_SCALE_STEP;
+            if (BASE_SCALE_FACTOR < BASE_SCALE_MIN) {
+                BASE_SCALE_FACTOR = BASE_SCALE_MIN;
+            }
+            LOG_INF("BASE_SCALE_FACTOR decreased to %d.%02d", 
+                    (int)BASE_SCALE_FACTOR, (int)(BASE_SCALE_FACTOR * 100) % 100);
+            break;
+        case TB_INC_EXPONENTIAL:
+            EXPONENTIAL_FACTOR += EXPONENTIAL_STEP;
+            if (EXPONENTIAL_FACTOR > EXPONENTIAL_MAX) {
+                EXPONENTIAL_FACTOR = EXPONENTIAL_MAX;
+            }
+            LOG_INF("EXPONENTIAL_FACTOR increased to %d.%02d", 
+                    (int)EXPONENTIAL_FACTOR, (int)(EXPONENTIAL_FACTOR * 100) % 100);
+            break;
+        case TB_DEC_EXPONENTIAL:
+            EXPONENTIAL_FACTOR -= EXPONENTIAL_STEP;
+            if (EXPONENTIAL_FACTOR < EXPONENTIAL_MIN) {
+                EXPONENTIAL_FACTOR = EXPONENTIAL_MIN;
+            }
+            LOG_INF("EXPONENTIAL_FACTOR decreased to %d.%02d", 
+                    (int)EXPONENTIAL_FACTOR, (int)(EXPONENTIAL_FACTOR * 100) % 100);
+            break;
+        case TB_INC_SMOOTHING:
+            SMOOTHING_FACTOR += SMOOTHING_STEP;
+            if (SMOOTHING_FACTOR > SMOOTHING_MAX) {
+                SMOOTHING_FACTOR = SMOOTHING_MAX;
+            }
+            LOG_INF("SMOOTHING_FACTOR increased to %d.%02d", 
+                    (int)SMOOTHING_FACTOR, (int)(SMOOTHING_FACTOR * 100) % 100);
+            break;
+        case TB_DEC_SMOOTHING:
+            SMOOTHING_FACTOR -= SMOOTHING_STEP;
+            if (SMOOTHING_FACTOR < SMOOTHING_MIN) {
+                SMOOTHING_FACTOR = SMOOTHING_MIN;
+            }
+            LOG_INF("SMOOTHING_FACTOR decreased to %d.%02d", 
+                    (int)SMOOTHING_FACTOR, (int)(SMOOTHING_FACTOR * 100) % 100);
+            break;
+        default:
+            LOG_WRN("Unknown trackball adjustment action: %d", action);
+            break;
     }
 
     k_mutex_unlock(&variable_mutex);

@@ -3,13 +3,11 @@
 #ifndef DT_BINDINGS_TRACKBALL_ACTIONS_H
 #define DT_BINDINGS_TRACKBALL_ACTIONS_H
 
-#define TB_INC_SPEED_MIN       0
-#define TB_DEC_SPEED_MIN       1
-#define TB_INC_SPEED_MAX       2
-#define TB_DEC_SPEED_MAX       3
-#define TB_INC_SCALE_DIV_MIN   4
-#define TB_DEC_SCALE_DIV_MIN   5
-#define TB_INC_SCALE_DIV_MAX   6
-#define TB_DEC_SCALE_DIV_MAX   7
+#define TB_INC_BASE_SCALE       0
+#define TB_DEC_BASE_SCALE       1
+#define TB_INC_EXPONENTIAL       2
+#define TB_DEC_EXPONENTIAL       3
+#define TB_INC_SMOOTHING   4
+#define TB_DEC_SMOOTHING   5
 
 #endif /* DT_BINDINGS_TRACKBALL_ACTIONS_H */
