@@ -243,6 +243,7 @@ static void process_direction(struct k_work *work)
             atomic_add(&dev_data->accumulated_y, scaled_value);
             LOG_INF("Accumulated Y: %ld", (long)atomic_get(&dev_data->accumulated_y));
             break;
+    }
 
     k_sem_give(&dev_data->movement_sem);
 
