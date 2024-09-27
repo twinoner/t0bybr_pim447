@@ -71,6 +71,7 @@ struct direction_data {
     int8_t value;
     uint32_t timestamp;
     const struct device *dev;
+    struct k_work work;  // Added work member
 };
 
 
