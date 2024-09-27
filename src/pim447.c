@@ -22,7 +22,8 @@ LOG_MODULE_REGISTER(pim447, CONFIG_INPUT_LOG_LEVEL);
 
 /* Device configuration structure */
 struct pim447_config {
-    struct i2c_dt_spec i2c;
+    const struct device *i2c_dev;
+    uint16_t i2c_addr;
     struct gpio_dt_spec int_gpio;
 };
 
@@ -50,7 +51,7 @@ static void process_direction(struct k_work *work)
     int ret;
 
     /* Read direction value */
-    ret = i2c_reg_read_byte_dt(&config->i2c, data->reg, &value);
+    ret = i2c_reg_read_byte(config->i2c_dev, config->i2c_addr, data->reg, &value);
     if (ret) {
         LOG_ERR("Failed to read direction data from PIM447");
         return;
@@ -68,7 +69,7 @@ static void process_direction(struct k_work *work)
     }
 
     /* Clear direction register */
-    i2c_reg_write_byte_dt(&config->i2c, data->reg, 0);
+    i2c_reg_write_byte(config->i2c_dev, config->i2c_addr, data->reg, 0);
 }
 
 static void pim447_gpio_callback(const struct device *port, struct gpio_callback *cb, gpio_port_pins_t pins)
@@ -83,9 +84,9 @@ static void pim447_gpio_callback(const struct device *port, struct gpio_callback
 
     /* Clear the INT status register */
     uint8_t int_status;
-    i2c_reg_read_byte_dt(&config->i2c, REG_INT, &int_status);
+    i2c_reg_read_byte(config->i2c_dev, config->i2c_addr, REG_INT, &int_status);
     int_status &= ~MSK_INT_TRIGGERED;
-    i2c_reg_write_byte_dt(&config->i2c, REG_INT, int_status);
+    i2c_reg_write_byte(config->i2c_dev, config->i2c_addr, REG_INT, int_status);
 }
 
 static int pim447_init(const struct device *dev)
@@ -93,8 +94,8 @@ static int pim447_init(const struct device *dev)
     const struct pim447_config *config = dev->config;
     struct pim447_data *data = dev->data;
 
-    if (!device_is_ready(config->i2c.bus)) {
-        LOG_ERR("I2C bus not ready");
+    if (!device_is_ready(config->i2c_dev)) {
+        LOG_ERR("I2C bus device is not ready");
         return -ENODEV;
     }
 
@@ -123,24 +124,27 @@ static int pim447_init(const struct device *dev)
 
     /* Enable interrupt output on the trackball */
     uint8_t int_reg;
-    i2c_reg_read_byte_dt(&config->i2c, REG_INT, &int_reg);
+    i2c_reg_read_byte(config->i2c_dev, config->i2c_addr, REG_INT, &int_reg);
     int_reg |= MSK_INT_OUT_EN;
-    i2c_reg_write_byte_dt(&config->i2c, REG_INT, int_reg);
+    i2c_reg_write_byte(config->i2c_dev, config->i2c_addr, REG_INT, int_reg);
 
     LOG_INF("PIM447 driver initialized");
 
     return 0;
 }
 
-/* Device configuration */
-static const struct pim447_config pim447_config = {
-    .i2c = I2C_DT_SPEC_INST_GET(0),
-    .int_gpio = GPIO_DT_SPEC_INST_GET(0, int_gpios),
-};
+#define PIM447_INIT(inst)                                               \
+    static const struct pim447_config pim447_config_##inst = {          \
+        .i2c_dev = DEVICE_DT_GET(DT_INST_BUS(inst)),                    \
+        .i2c_addr = DT_INST_REG_ADDR(inst),                             \
+        .int_gpio = GPIO_DT_SPEC_INST_GET(inst, int_gpios),             \
+    };                                                                  \
+                                                                        \
+    static struct pim447_data pim447_data_##inst;                       \
+                                                                        \
+    DEVICE_DT_INST_DEFINE(inst, pim447_init, NULL,                      \
+                          &pim447_data_##inst, &pim447_config_##inst,   \
+                          POST_KERNEL, CONFIG_INPUT_INIT_PRIORITY,      \
+                          NULL);
 
-/* Device data */
-static struct pim447_data pim447_data;
-
-/* Device initialization macro */
-DEVICE_DT_INST_DEFINE(0, pim447_init, NULL, &pim447_data, &pim447_config,
-                      POST_KERNEL, CONFIG_INPUT_INIT_PRIORITY, NULL);
+DT_INST_FOREACH_STATUS_OKAY(PIM447_INIT)
