@@ -92,6 +92,8 @@ static int32_t convert_speed(int32_t value)
         value = -value;
     }
 
+    LOG_INF("Converted speed: %d", value);
+
     return value;
 }
 
