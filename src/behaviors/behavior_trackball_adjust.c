@@ -18,11 +18,11 @@ LOG_MODULE_DECLARE(zmk, CONFIG_ZMK_LOG_LEVEL);
 #include "dt-bindings/trackball_actions.h"
 
 /* Extern variables */
-volatile uint8_t ACCUMULATION_THRESHOLD;
-volatile float BASE_SCALE_FACTOR;
-volatile float EXPONENTIAL_FACTOR;
-volatile float SMOOTHING_FACTOR;
-volatile uint8_t REPORT_INTERVAL_MS;
+extern volatile uint8_t ACCUMULATION_THRESHOLD;
+extern volatile float BASE_SCALE_FACTOR;
+extern volatile float EXPONENTIAL_FACTOR;
+extern volatile float SMOOTHING_FACTOR;
+extern volatile uint8_t REPORT_INTERVAL_MS;
 extern struct k_mutex variable_mutex;
 
 /* Constants for limits and steps */
@@ -48,7 +48,6 @@ struct behavior_trackball_adjust_config {
 struct behavior_trackball_adjust_data {
     // Add any runtime data if needed
 };
-
 
 /* Behavior function */
 static int behavior_trackball_adjust_binding_pressed(struct zmk_behavior_binding *binding,
