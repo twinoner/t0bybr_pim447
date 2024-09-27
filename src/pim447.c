@@ -222,28 +222,29 @@ static void process_direction(struct k_work *work)
     scaled_value = apply_non_linear_scaling(scaled_value);
     LOG_INF("Non-linear scaled value: %d", LOG_FLOAT(scaled_value));
 
-    float max_value = 100.0f;
+     // Limit the final value to prevent overflow, but allow for finer movements
+    float max_value = 1000.0f;
     scaled_value = fminf(fabsf(scaled_value), max_value) * (scaled_value >= 0 ? 1 : -1);
 
     // Accumulate movement
     switch (data->dir) {
         case DIR_LEFT:
-            atomic_add(&dev_data->accumulated_x, -scaled_value);
-            LOG_INF("Accumulated X: %ld", (long)atomic_get(&dev_data->accumulated_x));
+            atomic_add(&dev_data->accumulated_x, (int32_t)(-scaled_value * 100));
             break;
         case DIR_RIGHT:
-            atomic_add(&dev_data->accumulated_x, scaled_value);
-            LOG_INF("Accumulated X: %ld", (long)atomic_get(&dev_data->accumulated_x));
+            atomic_add(&dev_data->accumulated_x, (int32_t)(scaled_value * 100));
             break;
         case DIR_UP:
-            atomic_add(&dev_data->accumulated_y, -scaled_value);
-            LOG_INF("Accumulated Y: %ld", (long)atomic_get(&dev_data->accumulated_y));
+            atomic_add(&dev_data->accumulated_y, (int32_t)(-scaled_value * 100));
             break;
         case DIR_DOWN:
-            atomic_add(&dev_data->accumulated_y, scaled_value);
-            LOG_INF("Accumulated Y: %ld", (long)atomic_get(&dev_data->accumulated_y));
+            atomic_add(&dev_data->accumulated_y, (int32_t)(scaled_value * 100));
             break;
     }
+
+    LOG_INF("Accumulated X: %ld, Y: %ld", 
+            (long)atomic_get(&dev_data->accumulated_x),
+            (long)atomic_get(&dev_data->accumulated_y));
 
     k_sem_give(&dev_data->movement_sem);
 
@@ -265,22 +266,14 @@ static void report_movement(struct k_work *work)
 
     LOG_INF("Accumulated movement: x=%d, y=%d", x_movement, y_movement);
 
+    // Scale down the movement to reasonable values
+    float scaled_x = (float)x_movement / 100.0f;
+    float scaled_y = (float)y_movement / 100.0f;
+
     // Report movement if it exceeds the reduced threshold
-    if (abs(x_movement) >= MOVEMENT_THRESHOLD || abs(y_movement) >= MOVEMENT_THRESHOLD) {
-        int err;
-        err = input_report_rel(data->dev, INPUT_REL_X, x_movement, false, K_NO_WAIT);
-        if (err) {
-            LOG_ERR("Failed to report X movement: %d", err);
-        } else {
-            LOG_INF("Reported X movement: %d", x_movement);
-        }
-        err = input_report_rel(data->dev, INPUT_REL_Y, y_movement, true, K_NO_WAIT);
-        if (err) {
-            LOG_ERR("Failed to report Y movement: %d", err);
-        } else {
-            LOG_INF("Reported Y movement: %d", y_movement);
-        }
-        LOG_INF("Reported movement: x=%d, y=%d", x_movement, y_movement);
+    if (fabsf(scaled_x) >= MOVEMENT_THRESHOLD || fabsf(scaled_y) >= MOVEMENT_THRESHOLD) {
+        interpolate_movement(0, 0, scaled_x, scaled_y, INTERPOLATION_STEPS, data->dev);
+        LOG_INF("Reported interpolated movement: x=%.2f, y=%.2f", scaled_x, scaled_y);
     } else {
         LOG_INF("Movement below threshold, not reporting");
     }
