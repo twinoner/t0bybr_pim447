@@ -179,10 +179,13 @@ static float calculate_frequency_scale(const struct movement_data *history) {
     return MIN(scale, MAX_SCALE_FACTOR);
 }
 
-static void process_direction(struct k_work *work) {
+static void process_direction(struct k_work *work)
+{
     struct direction_data *data = CONTAINER_OF(work, struct direction_data, work);
     struct pim447_data *dev_data = CONTAINER_OF(data, struct pim447_data, direction_data[data->dir]);
     
+    LOG_INF("Processing direction %d, initial value=%d", data->dir, data->value);
+
     k_mutex_lock(&variable_mutex, K_FOREVER);
     float smoothing_factor = SMOOTHING_FACTOR;
     float exponential_base = EXPONENTIAL_BASE;
@@ -190,37 +193,45 @@ static void process_direction(struct k_work *work) {
 
     // Apply calibration offset
     float calibrated_value = data->value - dev_data->calibration_offsets[data->dir];
+    LOG_INF("Calibrated value: %.2f", calibrated_value);
 
     // Apply smoothing
     static float smooth_values[DIRECTION_COUNT] = {0};
     smooth_values[data->dir] = smooth_value(smooth_values[data->dir], calibrated_value, smoothing_factor);
+    LOG_INF("Smoothed value: %.2f", smooth_values[data->dir]);
 
     // Apply scaling and exponential function
     float scale = calculate_frequency_scale(movement_history);
     float scaled_value = apply_exponential_scaling(smooth_values[data->dir] * scale, exponential_base);
-
+    LOG_INF("Scaled value: %.2f", scaled_value);
+    
     // Apply non-linear scaling
     scaled_value = apply_non_linear_scaling(scaled_value);
+    LOG_INF("Non-linear scaled value: %.2f", scaled_value);
 
     // Accumulate movement
     switch (data->dir) {
         case DIR_LEFT:
             atomic_add(&dev_data->accumulated_x, -scaled_value);
+            LOG_INF("Accumulated X: %.2f", (float)atomic_get(&dev_data->accumulated_x));
             break;
         case DIR_RIGHT:
             atomic_add(&dev_data->accumulated_x, scaled_value);
+            LOG_INF("Accumulated X: %.2f", (float)atomic_get(&dev_data->accumulated_x));
             break;
         case DIR_UP:
             atomic_add(&dev_data->accumulated_y, -scaled_value);
+            LOG_INF("Accumulated Y: %.2f", (float)atomic_get(&dev_data->accumulated_y));
             break;
         case DIR_DOWN:
             atomic_add(&dev_data->accumulated_y, scaled_value);
+            LOG_INF("Accumulated Y: %.2f", (float)atomic_get(&dev_data->accumulated_y));
             break;
     }
 
     k_sem_give(&dev_data->movement_sem);
 
-    LOG_DBG("Processed direction %d: value=%.2f, timestamp=%u", data->dir, scaled_value, data->timestamp);
+    LOG_INF("Processed direction %d: final_value=%.2f", data->dir, scaled_value);
 }
 
 static void report_movement(struct k_work *work)
@@ -228,21 +239,43 @@ static void report_movement(struct k_work *work)
     struct pim447_data *data = CONTAINER_OF(work, struct pim447_data, work.work);
     int32_t x_movement, y_movement;
 
+    LOG_INF("Reporting movement");
+
     k_sem_take(&data->movement_sem, K_FOREVER);
 
     // Atomically get and reset accumulated movement
     x_movement = atomic_set(&data->accumulated_x, 0);
     y_movement = atomic_set(&data->accumulated_y, 0);
 
+    LOG_INF("Accumulated movement: x=%d, y=%d", x_movement, y_movement);
+
     // Only report if movement exceeds threshold
     if (abs(x_movement) > MOVEMENT_THRESHOLD || abs(y_movement) > MOVEMENT_THRESHOLD) {
-        input_report_rel(data->dev, INPUT_REL_X, x_movement, false, K_NO_WAIT);
-        input_report_rel(data->dev, INPUT_REL_Y, y_movement, true, K_NO_WAIT);
-        LOG_DBG("Reported movement: x=%d, y=%d", x_movement, y_movement);
+        int err;
+        err = input_report_rel(data->dev, INPUT_REL_X, x_movement, false, K_NO_WAIT);
+        if (err) {
+            LOG_ERR("Failed to report X movement: %d", err);
+        } else {
+            LOG_INF("Reported X movement: %d", x_movement);
+        }
+        err = input_report_rel(data->dev, INPUT_REL_Y, y_movement, true, K_NO_WAIT);
+        if (err) {
+            LOG_ERR("Failed to report Y movement: %d", err);
+        } else {
+            LOG_INF("Reported Y movement: %d", y_movement);
+        }
+        LOG_INF("Reported movement: x=%d, y=%d", x_movement, y_movement);
+    } else {
+        LOG_INF("Movement below threshold, not reporting");
     }
 
     // Schedule next report
-    k_work_schedule(&data->work, K_MSEC(10));
+    int ret = k_work_schedule(&data->work, K_MSEC(10));
+    if (ret < 0) {
+        LOG_ERR("Failed to schedule next report: %d", ret);
+    } else {
+        LOG_INF("Next report scheduled successfully");
+    }
 }
 
 static void pim447_work_handler(struct k_work *work)
