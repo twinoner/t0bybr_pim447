@@ -202,7 +202,6 @@ static void process_direction(struct k_work *work) {
     // Apply non-linear scaling
     scaled_value = apply_non_linear_scaling(scaled_value);
 
-
     // Accumulate movement
     switch (data->dir) {
         case DIR_LEFT:
@@ -364,7 +363,12 @@ static void pim447_gpio_callback(const struct device *port, struct gpio_callback
 
     LOG_INF("GPIO callback triggered on pin %d", config->int_gpio.pin);
 
-    k_work_submit(&data->work.work);
+    int ret = k_work_submit(&data->work.work);
+    if (ret < 0) {
+        LOG_ERR("Failed to submit work item: %d", ret);
+    } else {
+        LOG_INF("Work item submitted successfully");
+    }
 }
 
 static int pim447_enable_interrupt(const struct pim447_config *config, bool enable) {
