@@ -21,16 +21,28 @@ LOG_MODULE_DECLARE(zmk, CONFIG_ZMK_LOG_LEVEL);
 extern volatile uint8_t FREQUENCY_THRESHOLD;
 extern volatile float BASE_SCALE_FACTOR;
 extern volatile float MAX_SCALE_FACTOR;
+extern volatile float SMOOTHING_FACTOR;
+extern volatile uint8_t INTERPOLATION_STEPS;
+extern volatile float EXPONENTIAL_BASE;
 extern struct k_mutex variable_mutex;
 
 /* Constants for limits and steps */
 #define BASE_SCALE_STEP 0.1f
 #define FREQUENCY_THRESHOLD_STEP 5
+#define INTERPOLATION_STEPS_STEP 1
+#define EXPONENTIAL_BASE_STEP 0.1f
+#define SMOOTHING_FACTOR_STEP 0.05f
 
 #define BASE_SCALE_MIN 0.1f
 #define BASE_SCALE_MAX 5.0f
 #define FREQUENCY_THRESHOLD_MIN 0
 #define FREQUENCY_THRESHOLD_MAX 255
+#define SMOOTHING_FACTOR_MIN 0.0f
+#define SMOOTHING_FACTOR_MAX 1.0f
+#define INTERPOLATION_STEPS_MIN 1
+#define INTERPOLATION_STEPS_MAX 10
+#define EXPONENTIAL_BASE_MIN 1.1f
+#define EXPONENTIAL_BASE_MAX 2.0f
 
 /* Define the driver compatibility */
 #define DT_DRV_COMPAT zmk_behavior_trackball_adjust
@@ -82,6 +94,48 @@ static int behavior_trackball_adjust_binding_pressed(struct zmk_behavior_binding
                 FREQUENCY_THRESHOLD = FREQUENCY_THRESHOLD_MIN;
             }
             LOG_INF("FREQUENCY_THRESHOLD decreased to %d", (int)FREQUENCY_THRESHOLD);
+            break;
+        case TB_INC_SMOOTHING_FACTOR:
+            SMOOTHING_FACTOR += SMOOTHING_FACTOR_STEP;
+            if (SMOOTHING_FACTOR > SMOOTHING_FACTOR_MAX) {
+                SMOOTHING_FACTOR = SMOOTHING_FACTOR_MAX;
+            }
+            LOG_INF("SMOOTHING_FACTOR increased to %.2f", SMOOTHING_FACTOR);
+            break;
+        case TB_DEC_SMOOTHING_FACTOR:
+            SMOOTHING_FACTOR -= SMOOTHING_FACTOR_STEP;
+            if (SMOOTHING_FACTOR < SMOOTHING_FACTOR_MIN) {
+                SMOOTHING_FACTOR = SMOOTHING_FACTOR_MIN;
+            }
+            LOG_INF("SMOOTHING_FACTOR decreased to %.2f", SMOOTHING_FACTOR);
+            break;
+        case TB_INC_INTERPOLATION_STEPS:
+            INTERPOLATION_STEPS += INTERPOLATION_STEPS_STEP;
+            if (INTERPOLATION_STEPS > INTERPOLATION_STEPS_MAX) {
+                INTERPOLATION_STEPS = INTERPOLATION_STEPS_MAX;
+            }
+            LOG_INF("INTERPOLATION_STEPS increased to %d", INTERPOLATION_STEPS);
+            break;
+        case TB_DEC_INTERPOLATION_STEPS:
+            INTERPOLATION_STEPS -= INTERPOLATION_STEPS_STEP;
+            if (INTERPOLATION_STEPS < INTERPOLATION_STEPS_MIN) {
+                INTERPOLATION_STEPS = INTERPOLATION_STEPS_MIN;
+            }
+            LOG_INF("INTERPOLATION_STEPS decreased to %d", INTERPOLATION_STEPS);
+            break;
+        case TB_INC_EXPONENTIAL_BASE:
+            EXPONENTIAL_BASE += EXPONENTIAL_BASE_STEP;
+            if (EXPONENTIAL_BASE > EXPONENTIAL_BASE_MAX) {
+                EXPONENTIAL_BASE = EXPONENTIAL_BASE_MAX;
+            }
+            LOG_INF("EXPONENTIAL_BASE increased to %.2f", EXPONENTIAL_BASE);
+            break;
+        case TB_DEC_EXPONENTIAL_BASE:
+            EXPONENTIAL_BASE -= EXPONENTIAL_BASE_STEP;
+            if (EXPONENTIAL_BASE < EXPONENTIAL_BASE_MIN) {
+                EXPONENTIAL_BASE = EXPONENTIAL_BASE_MIN;
+            }
+            LOG_INF("EXPONENTIAL_BASE decreased to %.2f", EXPONENTIAL_BASE);
             break;
         default:
             LOG_WRN("Unknown trackball adjustment action: %d", action);

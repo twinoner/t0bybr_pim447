@@ -40,10 +40,14 @@
 
 #define MOVEMENT_HISTORY_SIZE 5
 
+
 /* Exposed variables */
 volatile uint8_t FREQUENCY_THRESHOLD = 100;
 volatile float BASE_SCALE_FACTOR = 1.0f;
 volatile float MAX_SCALE_FACTOR = 5.0f;
+volatile float SMOOTHING_FACTOR = 0.2f;
+volatile uint8_t INTERPOLATION_STEPS = 5;
+volatile float EXPONENTIAL_BASE = 1.5f;
 
 /* Mutex for thread safety */
 K_MUTEX_DEFINE(variable_mutex);
@@ -73,6 +77,46 @@ struct movement_data {
 
 static struct movement_data movement_history[MOVEMENT_HISTORY_SIZE];
 static int history_index = 0;
+
+static float smooth_value(float current, float target, float factor) {
+    return current + factor * (target - current);
+}
+
+static float apply_exponential_scaling(float value, float base) {
+    float sign = (value >= 0) ? 1 : -1;
+    return sign * (powf(base, fabsf(value)) - 1);
+}
+
+static void interpolate_movement(float start_x, float start_y, float end_x, float end_y, int steps, const struct device *dev) {
+    float step_x = (end_x - start_x) / steps;
+    float step_y = (end_y - start_y) / steps;
+
+    for (int i = 1; i <= steps; i++) {
+        float interp_x = start_x + i * step_x;
+        float interp_y = start_y + i * step_y;
+
+        input_report_rel(dev, INPUT_REL_X, (int)interp_x, false, K_NO_WAIT);
+        input_report_rel(dev, INPUT_REL_Y, (int)interp_y, (i == steps), K_NO_WAIT);
+
+               int err;
+
+        /* Report relative X movement */
+        err = input_report_rel(dev, INPUT_REL_X, interp_x, true, K_NO_WAIT);
+        if (err) {
+            LOG_ERR("Failed to report delta_x: %d", err);
+        } else {
+            LOG_DBG("Reported delta_x: %d", interp_x);
+        }
+
+        /* Report relative Y movement */
+        err = input_report_rel(dev, INPUT_REL_Y, interp_y, true, K_NO_WAIT);
+        if (err) {
+            LOG_ERR("Failed to report delta_y: %d", err);
+        } else {
+            LOG_DBG("Reported delta_y: %d", interp_y);
+        }
+    }
+}
 
 static float calculate_frequency_scale(const struct movement_data *history) {
     if (history[0].timestamp == history[MOVEMENT_HISTORY_SIZE - 1].timestamp) {
@@ -128,30 +172,20 @@ static void pim447_work_handler(struct k_work *work) {
         // Calculate scaling based on movement frequency
         float scale = calculate_frequency_scale(movement_history);
 
-        // Apply scaling
-        float scaled_x = delta_x * scale;
-        float scaled_y = delta_y * scale;
+        // Apply smoothing
+        static float smooth_x = 0, smooth_y = 0;
+        smooth_x = smooth_value(smooth_x, delta_x, SMOOTHING_FACTOR);
+        smooth_y = smooth_value(smooth_y, delta_y, SMOOTHING_FACTOR);
 
-       int err;
+        // Apply scaling and exponential function
+        float scaled_x = apply_exponential_scaling(smooth_x * scale, EXPONENTIAL_BASE);
+        float scaled_y = apply_exponential_scaling(smooth_y * scale, EXPONENTIAL_BASE);
 
-        /* Report relative X movement */
-        err = input_report_rel(dev, INPUT_REL_X, scaled_x, true, K_NO_WAIT);
-        if (err) {
-            LOG_ERR("Failed to report delta_x: %d", err);
-        } else {
-            LOG_DBG("Reported delta_x: %d", scaled_x);
-        }
+        // Interpolate movement
+        interpolate_movement(0, 0, scaled_x, scaled_y, INTERPOLATION_STEPS, dev);
 
-        /* Report relative Y movement */
-        err = input_report_rel(dev, INPUT_REL_Y, scaled_y, true, K_NO_WAIT);
-        if (err) {
-            LOG_ERR("Failed to report delta_y: %d", err);
-        } else {
-            LOG_DBG("Reported delta_y: %d", scaled_y);
-        }
-
+        LOG_DBG("Smoothed and scaled movement: x=%.2f, y=%.2f", scaled_x, scaled_y);
     }
-
 
     bool sw_pressed = (buf[4] & MSK_SWITCH_STATE) != 0;
 
