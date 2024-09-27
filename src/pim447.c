@@ -39,11 +39,11 @@
 #define MSK_INT_OUT_EN      0b00000010
 
 /* Exposed variables */
-volatile uint8_t ACCUMULATION_THRESHOLD 30;
-volatile float BASE_SCALE_FACTOR 0.5f;
-volatile float EXPONENTIAL_FACTOR 2.0f;
-volatile float SMOOTHING_FACTOR 0.7f;
-volatile uint8_t REPORT_INTERVAL_MS 10;
+volatile uint8_t ACCUMULATION_THRESHOLD = 30;
+volatile float BASE_SCALE_FACTOR = 0.5f;
+volatile float EXPONENTIAL_FACTOR = 2.0f;
+volatile float SMOOTHING_FACTOR = 0.7f;
+volatile uint8_t REPORT_INTERVAL_MS = 10;
 
 /* Mutex for thread safety */
 K_MUTEX_DEFINE(variable_mutex);
