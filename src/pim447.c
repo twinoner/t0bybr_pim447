@@ -98,8 +98,11 @@ static void pim447_work_handler(struct k_work *work) {
     LOG_INF("Raw data: LEFT=%d, RIGHT=%d, UP=%d, DOWN=%d, SWITCH=0x%02X",
             buf[0], buf[1], buf[2], buf[3], buf[4]);
 
+    // Calculate movement deltas
+    int8_t delta_x = (int8_t)buf[1] - (int8_t)buf[0]; // Right - Left
+    int8_t delta_y = (int8_t)buf[3] - (int8_t)buf[2]; // Down - Up
 
- // Accumulate deltas
+    // Accumulate deltas
     data->accum_x += delta_x;
     data->accum_y += delta_y;
 
@@ -343,7 +346,10 @@ static int pim447_init(const struct device *dev) {
 
     data->dev = dev;
     data->sw_pressed_prev = false;
-
+    data->accum_x = 0;
+    data->accum_y = 0;
+    data->last_report_time = k_uptime_get_32();
+    
     /* Check if the I2C device is ready */
     if (!device_is_ready(config->i2c.bus)) {
         LOG_ERR("I2C bus device is not ready");
