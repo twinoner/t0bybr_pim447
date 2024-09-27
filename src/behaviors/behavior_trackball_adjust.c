@@ -100,42 +100,49 @@ static int behavior_trackball_adjust_binding_pressed(struct zmk_behavior_binding
             if (SMOOTHING_FACTOR > SMOOTHING_FACTOR_MAX) {
                 SMOOTHING_FACTOR = SMOOTHING_FACTOR_MAX;
             }
-            LOG_INF("SMOOTHING_FACTOR increased to %.2f", SMOOTHING_FACTOR);
+            LOG_INF("SMOOTHING_FACTOR increased to %d.%02d",
+            (int)SMOOTHING_FACTOR, (int)(SMOOTHING_FACTOR * 100) % 100);
+            
             break;
         case TB_DEC_SMOOTHING_FACTOR:
             SMOOTHING_FACTOR -= SMOOTHING_FACTOR_STEP;
             if (SMOOTHING_FACTOR < SMOOTHING_FACTOR_MIN) {
                 SMOOTHING_FACTOR = SMOOTHING_FACTOR_MIN;
             }
-            LOG_INF("SMOOTHING_FACTOR decreased to %.2f", SMOOTHING_FACTOR);
+            LOG_INF("SMOOTHING_FACTOR decreased to %d.%02d",
+            (int)SMOOTHING_FACTOR, (int)(SMOOTHING_FACTOR * 100) % 100);
             break;
         case TB_INC_INTERPOLATION_STEPS:
             INTERPOLATION_STEPS += INTERPOLATION_STEPS_STEP;
             if (INTERPOLATION_STEPS > INTERPOLATION_STEPS_MAX) {
                 INTERPOLATION_STEPS = INTERPOLATION_STEPS_MAX;
             }
-            LOG_INF("INTERPOLATION_STEPS increased to %d", INTERPOLATION_STEPS);
+            LOG_INF("INTERPOLATION_STEPS increased to %d.%02d",
+            (int)INTERPOLATION_STEPS, (int)(INTERPOLATION_STEPS * 100) % 100);
             break;
         case TB_DEC_INTERPOLATION_STEPS:
             INTERPOLATION_STEPS -= INTERPOLATION_STEPS_STEP;
             if (INTERPOLATION_STEPS < INTERPOLATION_STEPS_MIN) {
                 INTERPOLATION_STEPS = INTERPOLATION_STEPS_MIN;
             }
-            LOG_INF("INTERPOLATION_STEPS decreased to %d", INTERPOLATION_STEPS);
+            LOG_INF("INTERPOLATION_STEPS decreased to %d.%02d",
+            (int)INTERPOLATION_STEPS, (int)(INTERPOLATION_STEPS * 100) % 100);
             break;
         case TB_INC_EXPONENTIAL_BASE:
             EXPONENTIAL_BASE += EXPONENTIAL_BASE_STEP;
             if (EXPONENTIAL_BASE > EXPONENTIAL_BASE_MAX) {
                 EXPONENTIAL_BASE = EXPONENTIAL_BASE_MAX;
             }
-            LOG_INF("EXPONENTIAL_BASE increased to %.2f", EXPONENTIAL_BASE);
+            LOG_INF("EXPONENTIAL_BASE increased to %d.%02d",
+            (int)EXPONENTIAL_BASE, (int)(EXPONENTIAL_BASE * 100) % 100);
             break;
         case TB_DEC_EXPONENTIAL_BASE:
             EXPONENTIAL_BASE -= EXPONENTIAL_BASE_STEP;
             if (EXPONENTIAL_BASE < EXPONENTIAL_BASE_MIN) {
                 EXPONENTIAL_BASE = EXPONENTIAL_BASE_MIN;
             }
-            LOG_INF("EXPONENTIAL_BASE decreased to %.2f", EXPONENTIAL_BASE);
+            LOG_INF("EXPONENTIAL_BASE decreased to %d.%02d",
+            (int)EXPONENTIAL_BASE, (int)(EXPONENTIAL_BASE * 100) % 100);
             break;
         default:
             LOG_WRN("Unknown trackball adjustment action: %d", action);
