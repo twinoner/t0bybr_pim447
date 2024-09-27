@@ -40,7 +40,7 @@
 #define MOVEMENT_HISTORY_SIZE 5
 #define DIRECTION_COUNT 4
 
-#define BUTTON_DEBOUNCE_TIME K_MSEC(50)
+#define BUTTON_DEBOUNCE_TIME_MS 50
 
 #define LOG_FLOAT(value) ((int)(value * 100))  // Log float as integer * 100
 
