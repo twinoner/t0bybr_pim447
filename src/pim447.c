@@ -39,7 +39,7 @@
 #define MSK_INT_OUT_EN      0b00000010
 
 #define MOVEMENT_HISTORY_SIZE 5
-
+#define DIRECTION_COUNT 4
 
 /* Exposed variables */
 volatile uint8_t FREQUENCY_THRESHOLD = 100;
@@ -50,11 +50,29 @@ volatile uint8_t INTERPOLATION_STEPS = 5;
 volatile float EXPONENTIAL_BASE = 1.5f;
 volatile float DIAGONAL_THRESHOLD = 0.7f;
 volatile float DIAGONAL_BOOST = 1.2f;
+volatile uint8_t CALIBRATION_SAMPLES = 100;
+volatile uint8_t  MOVEMENT_THRESHOLD = 2;
+
 
 /* Mutex for thread safety */
 K_MUTEX_DEFINE(variable_mutex);
 
 LOG_MODULE_REGISTER(pim447, LOG_LEVEL_DBG);
+
+enum direction {
+    DIR_LEFT,
+    DIR_RIGHT,
+    DIR_UP,
+    DIR_DOWN
+};
+
+struct direction_data {
+    enum direction dir;
+    int8_t value;
+    uint32_t timestamp;
+    const struct device *dev;
+};
+
 
 /* Device configuration structure */
 struct pim447_config {
@@ -68,6 +86,14 @@ struct pim447_data {
     struct k_work work;
     struct gpio_callback int_gpio_cb;
     bool sw_pressed_prev;
+    struct k_work direction_works[DIRECTION_COUNT];
+    struct direction_data direction_data[DIRECTION_COUNT];
+    float calibration_offsets[DIRECTION_COUNT];
+    int calibration_count;
+    struct k_work_q *trackball_workq;
+    struct k_sem movement_sem;
+    int32_t accumulated_x;
+    int32_t accumulated_y;
 };
 
 struct movement_data {
@@ -76,8 +102,74 @@ struct movement_data {
     uint32_t timestamp;
 };
 
+K_THREAD_STACK_DEFINE(trackball_stack_area, 1024);
+static struct k_work_q trackball_work_q;
+
 static struct movement_data movement_history[MOVEMENT_HISTORY_SIZE];
 static int history_index = 0;
+
+static void process_direction(struct k_work *work) {
+    struct direction_data *data = CONTAINER_OF(work, struct direction_data, work);
+    struct pim447_data *dev_data = CONTAINER_OF(data, struct pim447_data, direction_data[data->dir]);
+    float smoothed_value = 0;
+    
+    k_mutex_lock(&variable_mutex, K_FOREVER);
+    float smoothing_factor = SMOOTHING_FACTOR;
+    float exponential_base = EXPONENTIAL_BASE;
+    k_mutex_unlock(&variable_mutex);
+
+    // Apply calibration offset
+    float calibrated_value = data->value - dev_data->calibration_offsets[data->dir];
+
+    // Apply smoothing
+    static float smooth_values[DIRECTION_COUNT] = {0};
+    smooth_values[data->dir] = smooth_value(smooth_values[data->dir], calibrated_value, smoothing_factor);
+
+    // Apply scaling and exponential function
+    float scale = calculate_frequency_scale(movement_history);
+    float scaled_value = apply_exponential_scaling(smooth_values[data->dir] * scale, exponential_base);
+
+    // Accumulate movement
+    switch (data->dir) {
+        case DIR_LEFT:
+            dev_data->accumulated_x -= scaled_value;
+            break;
+        case DIR_RIGHT:
+            dev_data->accumulated_x += scaled_value;
+            break;
+        case DIR_UP:
+            dev_data->accumulated_y -= scaled_value;
+            break;
+        case DIR_DOWN:
+            dev_data->accumulated_y += scaled_value;
+            break;
+    }
+
+    k_sem_give(&dev_data->movement_sem);
+
+    LOG_DBG("Processed direction %d: value=%.2f, timestamp=%u", data->dir, scaled_value, data->timestamp);
+}
+
+static void report_movement(struct k_work *work) {
+    struct pim447_data *data = CONTAINER_OF(work, struct pim447_data, work);
+    int32_t x_movement, y_movement;
+
+    k_sem_take(&data->movement_sem, K_FOREVER);
+
+    // Atomically get and reset accumulated movement
+    x_movement = atomic_set(&data->accumulated_x, 0);
+    y_movement = atomic_set(&data->accumulated_y, 0);
+
+    // Only report if movement exceeds threshold
+    if (abs(x_movement) > MOVEMENT_THRESHOLD || abs(y_movement) > MOVEMENT_THRESHOLD) {
+        input_report_rel(data->dev, INPUT_REL_X, x_movement, false, K_NO_WAIT);
+        input_report_rel(data->dev, INPUT_REL_Y, y_movement, true, K_NO_WAIT);
+        LOG_DBG("Reported movement: x=%d, y=%d", x_movement, y_movement);
+    }
+
+    // Schedule next report
+    k_work_schedule_for_queue(data->trackball_workq, &data->work, K_MSEC(10));
+}
 
 static float smooth_value(float current, float target, float factor) {
     return current + factor * (target - current);
@@ -211,17 +303,13 @@ static void pim447_work_handler(struct k_work *work) {
     int8_t delta_x = (int8_t)buf[1] - (int8_t)buf[0];  // RIGHT - LEFT
     int8_t delta_y = (int8_t)buf[3] - (int8_t)buf[2];  // DOWN - UP
 
-    // Only process non-zero movements
-    if (delta_x != 0 || delta_y != 0) {
-        // Update movement history
-        movement_history[history_index].delta_x = delta_x;
-        movement_history[history_index].delta_y = delta_y;
-        movement_history[history_index].timestamp = k_uptime_get_32();
-
-        history_index = (history_index + 1) % MOVEMENT_HISTORY_SIZE;
-
-        // Process the movement
-        process_movement(dev, (float)delta_x, (float)delta_y);
+ // Process each direction independently
+    uint32_t current_time = k_uptime_get_32();
+    for (int i = 0; i < DIRECTION_COUNT; i++) {
+        data->direction_data[i].value = buf[i];
+        data->direction_data[i].timestamp = current_time;
+        data->direction_data[i].dev = dev;
+        k_work_submit_to_queue(data->trackball_workq, &data->direction_works[i]);
     }
 
     bool sw_pressed = (buf[4] & MSK_SWITCH_STATE) != 0;
@@ -277,6 +365,37 @@ static void pim447_work_handler(struct k_work *work) {
         }
         LOG_INF("INT status after clearing: 0x%02X", int_status);
     }
+}
+
+
+static void calibrate_trackball(struct pim447_data *data) {
+    const struct pim447_config *config = data->dev->config;
+    uint8_t buf[4];
+    int ret;
+    float sum[DIRECTION_COUNT] = {0};
+
+    LOG_INF("Starting trackball calibration...");
+
+    for (int i = 0; i < CALIBRATION_SAMPLES; i++) {
+        ret = i2c_burst_read_dt(&config->i2c, REG_LEFT, buf, 4);
+        if (ret) {
+            LOG_ERR("Failed to read movement data during calibration");
+            return;
+        }
+
+        for (int j = 0; j < DIRECTION_COUNT; j++) {
+            sum[j] += buf[j];
+        }
+
+        k_msleep(10);  // Wait a bit between samples
+    }
+
+    for (int i = 0; i < DIRECTION_COUNT; i++) {
+        data->calibration_offsets[i] = sum[i] / CALIBRATION_SAMPLES;
+        LOG_INF("Calibration offset for direction %d: %.2f", i, data->calibration_offsets[i]);
+    }
+
+    LOG_INF("Trackball calibration complete");
 }
 
 /* GPIO callback function */
@@ -452,6 +571,30 @@ static int pim447_init(const struct device *dev) {
 
     /* Enable the Trackball */
     pim447_enable(dev);
+
+    /* Initialize the work queue */
+    k_work_queue_start(&trackball_work_q, trackball_stack_area,
+                       K_THREAD_STACK_SIZEOF(trackball_stack_area),
+                       CONFIG_SYSTEM_WORKQUEUE_PRIORITY - 1, NULL);
+    data->trackball_workq = &trackball_work_q;
+
+    /* Initialize the work handler */
+    k_work_init_delayable(&data->work, report_movement);
+
+    /* Initialize direction-specific work items */
+    for (int i = 0; i < DIRECTION_COUNT; i++) {
+        k_work_init(&data->direction_works[i], process_direction);
+        data->direction_data[i].dir = (enum direction)i;
+    }
+
+    /* Initialize movement semaphore */
+    k_sem_init(&data->movement_sem, 0, 1);
+
+    /* Perform initial calibration */
+    calibrate_trackball(data);
+
+    /* Schedule first movement report */
+    k_work_schedule_for_queue(data->trackball_workq, &data->work, K_MSEC(10));
 
     /* Initialize the work handler */
     k_work_init(&data->work, pim447_work_handler);
