@@ -20,6 +20,8 @@ LOG_MODULE_REGISTER(pim447, CONFIG_INPUT_LOG_LEVEL);
 
 #define DIRECTION_COUNT 4
 
+#define DT_DRV_COMPAT pimoroni_pim447
+
 /* Device configuration structure */
 struct pim447_config {
     const struct device *i2c_dev;
