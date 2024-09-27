@@ -185,6 +185,8 @@ static void process_direction(struct k_work *work)
     smooth_values[data->dir] = smooth_value(smooth_values[data->dir], calibrated_value, smoothing_factor);
     LOG_INF("Smoothed value: %d", LOG_FLOAT(smooth_values[data->dir]));
 
+
+
     // Apply scaling and exponential function
     float scale = calculate_frequency_scale(movement_history);
     float scaled_value = apply_exponential_scaling(smooth_values[data->dir] * scale, exponential_base);
