@@ -39,11 +39,10 @@
 #define MSK_INT_OUT_EN      0b00000010
 
 /* Exposed variables */
-volatile uint8_t ACCUMULATION_THRESHOLD = 30;
-volatile float BASE_SCALE_FACTOR = 0.5f;
-volatile float EXPONENTIAL_FACTOR = 2.0f;
-volatile float SMOOTHING_FACTOR = 0.2f;
-volatile uint8_t REPORT_INTERVAL_MS = 10;
+volatile uint8_t MOVEMENT_HISTORY_SIZE = 5;
+volatile uint8_t FREQUENCY_THRESHOLD = 100;
+volatile float BASE_SCALE_FACTOR = 1.0f;
+volatile float MAX_SCALE_FACTOR = 5.0f;
 
 /* Mutex for thread safety */
 K_MUTEX_DEFINE(variable_mutex);
@@ -62,23 +61,34 @@ struct pim447_data {
     struct k_work work;
     struct gpio_callback int_gpio_cb;
     bool sw_pressed_prev;
-    int32_t accum_x;
-    int32_t accum_y;
-    float smooth_x;
-    float smooth_y;
-    uint32_t last_report_time;
 };
+
+struct movement_data {
+    int8_t delta_x;
+    int8_t delta_y;
+    uint32_t timestamp;
+};
+
+static struct movement_data movement_history[MOVEMENT_HISTORY_SIZE];
+static int history_index = 0;
+
+static float calculate_frequency_scale(const struct movement_data *history) {
+    if (history[0].timestamp == history[MOVEMENT_HISTORY_SIZE - 1].timestamp) {
+        return BASE_SCALE_FACTOR;  // Avoid division by zero
+    }
+
+    uint32_t time_span = history[0].timestamp - history[MOVEMENT_HISTORY_SIZE - 1].timestamp;
+    float movements_per_second = (float)(MOVEMENT_HISTORY_SIZE - 1) * 1000.0f / time_span;
+
+    float scale = BASE_SCALE_FACTOR * (1.0f + (movements_per_second / FREQUENCY_THRESHOLD));
+    return MIN(scale, MAX_SCALE_FACTOR);
+}
 
 /* Forward declaration of functions */
 static void pim447_work_handler(struct k_work *work);
 static void pim447_gpio_callback(const struct device *port, struct gpio_callback *cb, gpio_port_pins_t pins);
 static int pim447_enable_interrupt(const struct pim447_config *config, bool enable);
 
-static float apply_exponential_scaling(float value) {
-    float abs_value = fabsf(value);
-    float scaled = BASE_SCALE_FACTOR * powf(abs_value, EXPONENTIAL_FACTOR);
-    return (value >= 0) ? scaled : -scaled;
-}
 
 /* Work handler function */
 static void pim447_work_handler(struct k_work *work) {
@@ -100,58 +110,46 @@ static void pim447_work_handler(struct k_work *work) {
 
     LOG_INF("Raw data: LEFT=%d, RIGHT=%d, UP=%d, DOWN=%d, SWITCH=0x%02X",
             buf[0], buf[1], buf[2], buf[3], buf[4]);
+    
+    int8_t delta_x = (int8_t)buf[1] - (int8_t)buf[0];  // RIGHT - LEFT
+    int8_t delta_y = (int8_t)buf[3] - (int8_t)buf[2];  // DOWN - UP
 
-    // Calculate movement deltas
-    float delta_x = (float)((int8_t)buf[1] - (int8_t)buf[0]); // Right - Left
-    float delta_y = (float)((int8_t)buf[3] - (int8_t)buf[2]); // Down - Up
+    // Only process non-zero movements
+    if (delta_x != 0 || delta_y != 0) {
+        // Update movement history
+        movement_history[history_index].delta_x = delta_x;
+        movement_history[history_index].delta_y = delta_y;
+        movement_history[history_index].timestamp = k_uptime_get_32();
 
-    // Accumulate deltas
-    data->accum_x += delta_x;
-    data->accum_y += delta_y;
+        history_index = (history_index + 1) % MOVEMENT_HISTORY_SIZE;
 
-    uint32_t current_time = k_uptime_get_32();
-    uint32_t time_diff = current_time - data->last_report_time;
+        // Calculate scaling based on movement frequency
+        float scale = calculate_frequency_scale(movement_history);
 
-    // Check if we should report movement
-    if (fabsf(data->accum_x) >= ACCUMULATION_THRESHOLD || 
-        fabsf(data->accum_y) >= ACCUMULATION_THRESHOLD ||
-        time_diff >= REPORT_INTERVAL_MS) {
+        // Apply scaling
+        float scaled_x = delta_x * scale;
+        float scaled_y = delta_y * scale;
 
-        // Apply exponential scaling
-        float scaled_x = apply_exponential_scaling(data->accum_x);
-        float scaled_y = apply_exponential_scaling(data->accum_y);
-
-        // Apply smoothing
-        data->smooth_x = (SMOOTHING_FACTOR * data->smooth_x) + ((1 - SMOOTHING_FACTOR) * scaled_x);
-        data->smooth_y = (SMOOTHING_FACTOR * data->smooth_y) + ((1 - SMOOTHING_FACTOR) * scaled_y);
-
-        int16_t report_x = (int16_t)roundf(data->smooth_x);
-        int16_t report_y = (int16_t)roundf(data->smooth_y);
-
-        LOG_INF("Reporting movement: delta_x=%d, delta_y=%d", report_x, report_y);
-
-        int err;
+       int err;
 
         /* Report relative X movement */
-        err = input_report_rel(dev, INPUT_REL_X, report_x, true, K_NO_WAIT);
+        err = input_report_rel(dev, INPUT_REL_X, scaled_x, true, K_NO_WAIT);
         if (err) {
             LOG_ERR("Failed to report delta_x: %d", err);
         } else {
-            LOG_DBG("Reported delta_x: %d", report_x);
+            LOG_DBG("Reported delta_x: %d", scaled_x);
         }
 
         /* Report relative Y movement */
-        err = input_report_rel(dev, INPUT_REL_Y, report_y, true, K_NO_WAIT);
+        err = input_report_rel(dev, INPUT_REL_Y, scaled_y, true, K_NO_WAIT);
         if (err) {
             LOG_ERR("Failed to report delta_y: %d", err);
         } else {
-            LOG_DBG("Reported delta_y: %d", report_y);
+            LOG_DBG("Reported delta_y: %d", scaled_y);
         }
 
-        // Reset accumulation
-        data->accum_x = 0;
-        data->accum_y = 0;
-        data->last_report_time = current_time;
+        LOG_INF("Movement: (%d, %d), Scale: %.2f, Scaled: (%.2f, %.2f)", 
+                delta_x, delta_y, scale, scaled_x, scaled_y);
     }
 
 
@@ -357,11 +355,6 @@ static int pim447_init(const struct device *dev) {
 
     data->dev = dev;
     data->sw_pressed_prev = false;
-    data->accum_x = 0;
-    data->accum_y = 0;
-    data->smooth_x = 0;
-    data->smooth_y = 0;
-    data->last_report_time = k_uptime_get_32();
 
     /* Check if the I2C device is ready */
     if (!device_is_ready(config->i2c.bus)) {
