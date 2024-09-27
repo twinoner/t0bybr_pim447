@@ -11,7 +11,6 @@
 #include <stdlib.h>
 #include <math.h>
 
-
 /* Register Addresses */
 #define REG_LED_RED     0x00
 #define REG_LED_GRN     0x01
@@ -53,7 +52,6 @@ volatile float DIAGONAL_BOOST = 1.2f;
 volatile uint8_t CALIBRATION_SAMPLES = 100;
 volatile uint8_t  MOVEMENT_THRESHOLD = 2;
 
-
 /* Mutex for thread safety */
 K_MUTEX_DEFINE(variable_mutex);
 
@@ -71,9 +69,8 @@ struct direction_data {
     int8_t value;
     uint32_t timestamp;
     const struct device *dev;
-    struct k_work work;  // Added work member
+    struct k_work work;
 };
-
 
 /* Device configuration structure */
 struct pim447_config {
@@ -84,7 +81,7 @@ struct pim447_config {
 /* Device data structure */
 struct pim447_data {
     const struct device *dev;
-    struct k_work work;
+    struct k_work_delayable work;
     struct gpio_callback int_gpio_cb;
     bool sw_pressed_prev;
     struct k_work direction_works[DIRECTION_COUNT];
@@ -93,8 +90,8 @@ struct pim447_data {
     int calibration_count;
     struct k_work_q *trackball_workq;
     struct k_sem movement_sem;
-    int32_t accumulated_x;
-    int32_t accumulated_y;
+    atomic_t accumulated_x;
+    atomic_t accumulated_y;
 };
 
 struct movement_data {
@@ -109,10 +106,71 @@ static struct k_work_q trackball_work_q;
 static struct movement_data movement_history[MOVEMENT_HISTORY_SIZE];
 static int history_index = 0;
 
+/* Function prototypes */
+static float smooth_value(float current, float target, float factor);
+static float calculate_frequency_scale(const struct movement_data *history);
+static float apply_exponential_scaling(float value, float base);
+static void process_direction(struct k_work *work);
+static void report_movement(struct k_work *work);
+static void pim447_work_handler(struct k_work *work);
+static void pim447_gpio_callback(const struct device *port, struct gpio_callback *cb, gpio_port_pins_t pins);
+static int pim447_enable_interrupt(const struct pim447_config *config, bool enable);
+static int pim447_enable(const struct device *dev);
+static int pim447_disable(const struct device *dev);
+static int pim447_init(const struct device *dev);
+
+static float smooth_value(float current, float target, float factor) {
+    return current + factor * (target - current);
+}
+
+static float apply_exponential_scaling(float value, float base) {
+    float sign = (value >= 0) ? 1 : -1;
+    return sign * (powf(base, fabsf(value)) - 1);
+}
+
+static void interpolate_movement(float start_x, float start_y, float end_x, float end_y, int steps, const struct device *dev) {
+    float step_x = (end_x - start_x) / steps;
+    float step_y = (end_y - start_y) / steps;
+
+    for (int i = 1; i <= steps; i++) {
+        float interp_x = start_x + i * step_x;
+        float interp_y = start_y + i * step_y;
+
+        int err;
+
+        /* Report relative X movement */
+        err = input_report_rel(dev, INPUT_REL_X, (int)interp_x, false, K_NO_WAIT);
+        if (err) {
+            LOG_ERR("Failed to report delta_x: %d", err);
+        } else {
+            LOG_DBG("Reported delta_x: %d", (int)interp_x);
+        }
+
+        /* Report relative Y movement */
+        err = input_report_rel(dev, INPUT_REL_Y, (int)interp_y, true, K_NO_WAIT);
+        if (err) {
+            LOG_ERR("Failed to report delta_y: %d", err);
+        } else {
+            LOG_DBG("Reported delta_y: %d", (int)interp_y);
+        }
+    }
+}
+
+static float calculate_frequency_scale(const struct movement_data *history) {
+    if (history[0].timestamp == history[MOVEMENT_HISTORY_SIZE - 1].timestamp) {
+        return BASE_SCALE_FACTOR;  // Avoid division by zero
+    }
+
+    uint32_t time_span = history[0].timestamp - history[MOVEMENT_HISTORY_SIZE - 1].timestamp;
+    float movements_per_second = (float)(MOVEMENT_HISTORY_SIZE - 1) * 1000.0f / time_span;
+
+    float scale = BASE_SCALE_FACTOR * (1.0f + (movements_per_second / FREQUENCY_THRESHOLD));
+    return MIN(scale, MAX_SCALE_FACTOR);
+}
+
 static void process_direction(struct k_work *work) {
     struct direction_data *data = CONTAINER_OF(work, struct direction_data, work);
     struct pim447_data *dev_data = CONTAINER_OF(data, struct pim447_data, direction_data[data->dir]);
-    float smoothed_value = 0;
     
     k_mutex_lock(&variable_mutex, K_FOREVER);
     float smoothing_factor = SMOOTHING_FACTOR;
@@ -133,16 +191,16 @@ static void process_direction(struct k_work *work) {
     // Accumulate movement
     switch (data->dir) {
         case DIR_LEFT:
-            dev_data->accumulated_x -= scaled_value;
+            atomic_add(&dev_data->accumulated_x, -scaled_value);
             break;
         case DIR_RIGHT:
-            dev_data->accumulated_x += scaled_value;
+            atomic_add(&dev_data->accumulated_x, scaled_value);
             break;
         case DIR_UP:
-            dev_data->accumulated_y -= scaled_value;
+            atomic_add(&dev_data->accumulated_y, -scaled_value);
             break;
         case DIR_DOWN:
-            dev_data->accumulated_y += scaled_value;
+            atomic_add(&dev_data->accumulated_y, scaled_value);
             break;
     }
 
@@ -172,115 +230,6 @@ static void report_movement(struct k_work *work) {
     k_work_schedule_for_queue(data->trackball_workq, &data->work, K_MSEC(10));
 }
 
-static float smooth_value(float current, float target, float factor) {
-    return current + factor * (target - current);
-}
-
-static float apply_exponential_scaling(float value, float base) {
-    float sign = (value >= 0) ? 1 : -1;
-    return sign * (powf(base, fabsf(value)) - 1);
-}
-
-static void interpolate_movement(float start_x, float start_y, float end_x, float end_y, int steps, const struct device *dev) {
-    float step_x = (end_x - start_x) / steps;
-    float step_y = (end_y - start_y) / steps;
-
-    for (int i = 1; i <= steps; i++) {
-        float interp_x = start_x + i * step_x;
-        float interp_y = start_y + i * step_y;
-
-        input_report_rel(dev, INPUT_REL_X, (int)interp_x, false, K_NO_WAIT);
-        input_report_rel(dev, INPUT_REL_Y, (int)interp_y, (i == steps), K_NO_WAIT);
-
-               int err;
-
-        /* Report relative X movement */
-        err = input_report_rel(dev, INPUT_REL_X, interp_x, true, K_NO_WAIT);
-        if (err) {
-            LOG_ERR("Failed to report delta_x: %d", err);
-        } else {
-            LOG_DBG("Reported delta_x: %d", interp_x);
-        }
-
-        /* Report relative Y movement */
-        err = input_report_rel(dev, INPUT_REL_Y, interp_y, true, K_NO_WAIT);
-        if (err) {
-            LOG_ERR("Failed to report delta_y: %d", err);
-        } else {
-            LOG_DBG("Reported delta_y: %d", interp_y);
-        }
-    }
-}
-
-static float calculate_frequency_scale(const struct movement_data *history) {
-    if (history[0].timestamp == history[MOVEMENT_HISTORY_SIZE - 1].timestamp) {
-        return BASE_SCALE_FACTOR;  // Avoid division by zero
-    }
-
-    uint32_t time_span = history[0].timestamp - history[MOVEMENT_HISTORY_SIZE - 1].timestamp;
-    float movements_per_second = (float)(MOVEMENT_HISTORY_SIZE - 1) * 1000.0f / time_span;
-
-    float scale = BASE_SCALE_FACTOR * (1.0f + (movements_per_second / FREQUENCY_THRESHOLD));
-    return MIN(scale, MAX_SCALE_FACTOR);
-}
-
-static void process_movement(const struct device *dev, float delta_x, float delta_y) {
-    // Calculate the magnitude of the movement
-    float magnitude = sqrtf(delta_x * delta_x + delta_y * delta_y);
-
-    // Normalize the movement
-    float norm_x = delta_x / magnitude;
-    float norm_y = delta_y / magnitude;
-
-    // Check if the movement is diagonal
-    k_mutex_lock(&variable_mutex, K_FOREVER);
-    bool is_diagonal = (fabsf(norm_x) > DIAGONAL_THRESHOLD) && (fabsf(norm_y) > DIAGONAL_THRESHOLD);
-    k_mutex_unlock(&variable_mutex);
-
-    // Apply smoothing
-    k_mutex_lock(&variable_mutex, K_FOREVER);
-    float smoothing_factor = SMOOTHING_FACTOR;
-    k_mutex_unlock(&variable_mutex);
-
-    static float smooth_x = 0, smooth_y = 0;
-    smooth_x = smooth_value(smooth_x, delta_x, smoothing_factor);
-    smooth_y = smooth_value(smooth_y, delta_y, smoothing_factor);
-
-    // Calculate scaling based on movement frequency
-    float scale = calculate_frequency_scale(movement_history);
-
-    // Apply scaling and exponential function
-    k_mutex_lock(&variable_mutex, K_FOREVER);
-    float exponential_base = EXPONENTIAL_BASE;
-    k_mutex_unlock(&variable_mutex);
-
-    float scaled_x = apply_exponential_scaling(smooth_x * scale, exponential_base);
-    float scaled_y = apply_exponential_scaling(smooth_y * scale, exponential_base);
-
-    // Apply diagonal boost if movement is diagonal
-    k_mutex_lock(&variable_mutex, K_FOREVER);
-    if (is_diagonal) {
-        scaled_x *= DIAGONAL_BOOST;
-        scaled_y *= DIAGONAL_BOOST;
-    }
-    k_mutex_unlock(&variable_mutex);
-
-    // Interpolate movement
-    k_mutex_lock(&variable_mutex, K_FOREVER);
-    uint8_t interpolation_steps = INTERPOLATION_STEPS;
-    k_mutex_unlock(&variable_mutex);
-
-    interpolate_movement(0, 0, scaled_x, scaled_y, interpolation_steps, dev);
-
-    LOG_DBG("Processed movement: x=%.2f, y=%.2f, diagonal=%d", scaled_x, scaled_y, is_diagonal);
-}
-
-/* Forward declaration of functions */
-static void pim447_work_handler(struct k_work *work);
-static void pim447_gpio_callback(const struct device *port, struct gpio_callback *cb, gpio_port_pins_t pins);
-static int pim447_enable_interrupt(const struct pim447_config *config, bool enable);
-
-/* Work handler function */
 static void pim447_work_handler(struct k_work *work) {
     struct pim447_data *data = CONTAINER_OF(work, struct pim447_data, work);
     const struct pim447_config *config = data->dev->config;
@@ -304,7 +253,7 @@ static void pim447_work_handler(struct k_work *work) {
     int8_t delta_x = (int8_t)buf[1] - (int8_t)buf[0];  // RIGHT - LEFT
     int8_t delta_y = (int8_t)buf[3] - (int8_t)buf[2];  // DOWN - UP
 
- // Process each direction independently
+    // Process each direction independently
     uint32_t current_time = k_uptime_get_32();
     for (int i = 0; i < DIRECTION_COUNT; i++) {
         data->direction_data[i].value = buf[i];
@@ -315,16 +264,12 @@ static void pim447_work_handler(struct k_work *work) {
 
     bool sw_pressed = (buf[4] & MSK_SWITCH_STATE) != 0;
 
-    int err;
-
-
-    err = input_report_key(dev, INPUT_BTN_0, sw_pressed ? 1 : 0, true, K_FOREVER);
+    int err = input_report_key(dev, INPUT_BTN_0, sw_pressed ? 1 : 0, true, K_FOREVER);
     if (err) {
         LOG_ERR("Failed to report switch state: %d", err);
     } else {
         LOG_DBG("Reported switch state: %d", sw_pressed);
     }
-
 
     /* Clear movement registers by writing zeros */
     uint8_t zero = 0;
@@ -343,9 +288,6 @@ static void pim447_work_handler(struct k_work *work) {
                 delta_x, delta_y, sw_pressed);
         data->sw_pressed_prev = sw_pressed;
     }
-
-
-    
 
     /* Read and clear the INT status register if necessary */
     uint8_t int_status;
@@ -367,7 +309,6 @@ static void pim447_work_handler(struct k_work *work) {
         LOG_INF("INT status after clearing: 0x%02X", int_status);
     }
 }
-
 
 static void calibrate_trackball(struct pim447_data *data) {
     const struct pim447_config *config = data->dev->config;
@@ -399,7 +340,6 @@ static void calibrate_trackball(struct pim447_data *data) {
     LOG_INF("Trackball calibration complete");
 }
 
-/* GPIO callback function */
 static void pim447_gpio_callback(const struct device *port, struct gpio_callback *cb, gpio_port_pins_t pins) {
     struct pim447_data *data = CONTAINER_OF(cb, struct pim447_data, int_gpio_cb);
     const struct pim447_config *config = data->dev->config;
@@ -409,7 +349,6 @@ static void pim447_gpio_callback(const struct device *port, struct gpio_callback
     k_work_submit(&data->work);
 }
 
-/* Function to enable or disable interrupt output */
 static int pim447_enable_interrupt(const struct pim447_config *config, bool enable) {
     uint8_t int_reg;
     int ret;
@@ -442,7 +381,6 @@ static int pim447_enable_interrupt(const struct pim447_config *config, bool enab
     return 0;
 }
 
-/* Enable function */
 static int pim447_enable(const struct device *dev) {
     const struct pim447_config *config = dev->config;
     struct pim447_data *data = dev->data;
@@ -508,7 +446,6 @@ static int pim447_enable(const struct device *dev) {
     return 0;
 }
 
-/* Disable function */
 static int pim447_disable(const struct device *dev) {
     const struct pim447_config *config = dev->config;
     struct pim447_data *data = dev->data;
@@ -538,7 +475,6 @@ static int pim447_disable(const struct device *dev) {
     return 0;
 }
 
-/* Device initialization function */
 static int pim447_init(const struct device *dev) {
     const struct pim447_config *config = dev->config;
     struct pim447_data *data = dev->data;
@@ -597,14 +533,10 @@ static int pim447_init(const struct device *dev) {
     /* Schedule first movement report */
     k_work_schedule_for_queue(data->trackball_workq, &data->work, K_MSEC(10));
 
-    /* Initialize the work handler */
-    k_work_init(&data->work, pim447_work_handler);
-
     LOG_INF("PIM447 driver initialized");
 
     return 0;
 }
-
 
 /* Device configuration */
 static const struct pim447_config pim447_config = {
@@ -615,6 +547,6 @@ static const struct pim447_config pim447_config = {
 /* Device data */
 static struct pim447_data pim447_data;
 
-    /* Device initialization macro */
-    DEVICE_DT_INST_DEFINE(0, pim447_init, NULL, &pim447_data, &pim447_config,
-                        POST_KERNEL, CONFIG_INPUT_INIT_PRIORITY, NULL);
+/* Device initialization macro */
+DEVICE_DT_INST_DEFINE(0, pim447_init, NULL, &pim447_data, &pim447_config,
+                      POST_KERNEL, CONFIG_INPUT_INIT_PRIORITY, NULL);
