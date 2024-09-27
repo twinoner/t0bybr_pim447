@@ -15,7 +15,7 @@ properties:
     description: Interrupt pin
 
   move_factor:
-    type: integer
+    type: int
     required: true
     description: The factor to multiply the movement by
     default: 1
