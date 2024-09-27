@@ -18,7 +18,6 @@ LOG_MODULE_DECLARE(zmk, CONFIG_ZMK_LOG_LEVEL);
 #include "dt-bindings/trackball_actions.h"
 
 /* Extern variables */
-extern volatile uint8_t MOVEMENT_HISTORY_SIZE;
 extern volatile uint8_t FREQUENCY_THRESHOLD;
 extern volatile float BASE_SCALE_FACTOR;
 extern volatile float MAX_SCALE_FACTOR;
@@ -26,15 +25,12 @@ extern struct k_mutex variable_mutex;
 
 /* Constants for limits and steps */
 #define BASE_SCALE_STEP 0.1f
-#define MOVEMENT_HISTORY_SIZE_STEP 1
 #define FREQUENCY_THRESHOLD_STEP 5
 
 #define BASE_SCALE_MIN 0.1f
 #define BASE_SCALE_MAX 5.0f
 #define FREQUENCY_THRESHOLD_MIN 0
 #define FREQUENCY_THRESHOLD_MAX 255
-#define MOVEMENT_HISTORY_SIZE_MIN 1
-#define MOVEMENT_HISTORY_SIZE_MAX 20
 
 /* Define the driver compatibility */
 #define DT_DRV_COMPAT zmk_behavior_trackball_adjust
@@ -72,20 +68,6 @@ static int behavior_trackball_adjust_binding_pressed(struct zmk_behavior_binding
             }
             LOG_INF("BASE_SCALE_FACTOR decreased to %d.%02d", 
                     (int)BASE_SCALE_FACTOR, (int)(BASE_SCALE_FACTOR * 100) % 100);
-            break;
-        case TB_INC_MOVEMENT_HISTORY_SIZE:
-            MOVEMENT_HISTORY_SIZE += MOVEMENT_HISTORY_SIZE_STEP;
-            if (MOVEMENT_HISTORY_SIZE > MOVEMENT_HISTORY_SIZE_MAX) {
-                MOVEMENT_HISTORY_SIZE = MOVEMENT_HISTORY_SIZE_MAX;
-            }
-            LOG_INF("MOVEMENT_HISTORY_SIZE increased to %d", (int)MOVEMENT_HISTORY_SIZE;
-            break;
-        case TB_DEC_MOVEMENT_HISTORY_SIZE:
-            MOVEMENT_HISTORY_SIZE -= MOVEMENT_HISTORY_SIZE_STEP;
-            if (MOVEMENT_HISTORY_SIZE < MOVEMENT_HISTORY_SIZE_MIN) {
-                MOVEMENT_HISTORY_SIZE = MOVEMENT_HISTORY_SIZE_MIN;
-            }
-            LOG_INF("MOVEMENT_HISTORY_SIZE decreased to %d", (int)MOVEMENT_HISTORY_SIZE;
             break;
         case TB_INC_FREQUENCY_THRESHOLD:
             FREQUENCY_THRESHOLD += FREQUENCY_THRESHOLD_STEP;

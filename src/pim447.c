@@ -38,8 +38,9 @@
 #define MSK_INT_TRIGGERED   0b00000001
 #define MSK_INT_OUT_EN      0b00000010
 
+#define MOVEMENT_HISTORY_SIZE 5;
+
 /* Exposed variables */
-volatile uint8_t MOVEMENT_HISTORY_SIZE = 5;
 volatile uint8_t FREQUENCY_THRESHOLD = 100;
 volatile float BASE_SCALE_FACTOR = 1.0f;
 volatile float MAX_SCALE_FACTOR = 5.0f;
@@ -68,6 +69,7 @@ struct movement_data {
     int8_t delta_y;
     uint32_t timestamp;
 };
+
 
 static struct movement_data movement_history[MOVEMENT_HISTORY_SIZE];
 static int history_index = 0;
