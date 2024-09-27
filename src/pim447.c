@@ -8,6 +8,7 @@
 #include <zephyr/drivers/gpio.h>
 #include <zephyr/kernel.h>
 #include <zephyr/logging/log.h>
+#include <stdlib.h>
 #include <math.h>
 
 
@@ -121,6 +122,8 @@ static void pim447_work_handler(struct k_work *work) {
 
         LOG_INF("Reporting movement: delta_x=%d, delta_y=%d, scale=%.2f", 
                 scaled_delta_x, scaled_delta_y, scale);
+
+        int err;
 
         /* Report relative X movement */
         err = input_report_rel(dev, INPUT_REL_X, scaled_delta_x, true, K_NO_WAIT);
@@ -349,7 +352,7 @@ static int pim447_init(const struct device *dev) {
     data->accum_x = 0;
     data->accum_y = 0;
     data->last_report_time = k_uptime_get_32();
-    
+
     /* Check if the I2C device is ready */
     if (!device_is_ready(config->i2c.bus)) {
         LOG_ERR("I2C bus device is not ready");
