@@ -78,32 +78,28 @@ static int behavior_trackball_adjust_binding_pressed(struct zmk_behavior_binding
             if (MOVEMENT_HISTORY_SIZE > MOVEMENT_HISTORY_SIZE_MAX) {
                 MOVEMENT_HISTORY_SIZE = MOVEMENT_HISTORY_SIZE_MAX;
             }
-            LOG_INF("MOVEMENT_HISTORY_SIZE increased to %d", 
-                    (int)MOVEMENT_HISTORY_SIZE, (int)(MOVEMENT_HISTORY_SIZE * 100) % 100);
+            LOG_INF("MOVEMENT_HISTORY_SIZE increased to %d", (int)MOVEMENT_HISTORY_SIZE;
             break;
         case TB_DEC_MOVEMENT_HISTORY_SIZE:
             MOVEMENT_HISTORY_SIZE -= MOVEMENT_HISTORY_SIZE_STEP;
             if (MOVEMENT_HISTORY_SIZE < MOVEMENT_HISTORY_SIZE_MIN) {
                 MOVEMENT_HISTORY_SIZE = MOVEMENT_HISTORY_SIZE_MIN;
             }
-            LOG_INF("MOVEMENT_HISTORY_SIZE decreased to %d", 
-                    (int)MOVEMENT_HISTORY_SIZE, (int)(MOVEMENT_HISTORY_SIZE * 100) % 100);
+            LOG_INF("MOVEMENT_HISTORY_SIZE decreased to %d", (int)MOVEMENT_HISTORY_SIZE;
             break;
         case TB_INC_FREQUENCY_THRESHOLD:
             FREQUENCY_THRESHOLD += FREQUENCY_THRESHOLD_STEP;
             if (FREQUENCY_THRESHOLD > FREQUENCY_THRESHOLD_MAX) {
                 FREQUENCY_THRESHOLD = FREQUENCY_THRESHOLD_MAX;
             }
-            LOG_INF("FREQUENCY_THRESHOLD increased to %d", 
-                    (int)FREQUENCY_THRESHOLD, (int)(FREQUENCY_THRESHOLD * 100) % 100);
+            LOG_INF("FREQUENCY_THRESHOLD increased to %d", (int)FREQUENCY_THRESHOLD;
             break;
         case TB_DEC_FREQUENCY_THRESHOLD:
             FREQUENCY_THRESHOLD -= FREQUENCY_THRESHOLD_STEP;
             if (FREQUENCY_THRESHOLD < FREQUENCY_THRESHOLD_MIN) {
                 FREQUENCY_THRESHOLD = FREQUENCY_THRESHOLD_MIN;
             }
-            LOG_INF("FREQUENCY_THRESHOLD decreased to %d", 
-                    (int)FREQUENCY_THRESHOLD, (int)(FREQUENCY_THRESHOLD * 100) % 100);
+            LOG_INF("FREQUENCY_THRESHOLD decreased to %d", (int)FREQUENCY_THRESHOLD;
             break;
         default:
             LOG_WRN("Unknown trackball adjustment action: %d", action);
