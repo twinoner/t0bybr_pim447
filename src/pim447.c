@@ -562,7 +562,7 @@ static int pim447_init(const struct device *dev) {
     /* Initialize the work queue */
     k_work_queue_start(&trackball_work_q, trackball_stack_area,
                        K_THREAD_STACK_SIZEOF(trackball_stack_area),
-                       CONFIG_SYSTEM_WORKQUEUE_PRIORITY - 1, NULL);
+                       CONFIG_SYSTEM_WORKQUEUE_PRIORITY, NULL);
     data->trackball_workq = &trackball_work_q;
     
 
