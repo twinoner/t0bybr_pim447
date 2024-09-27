@@ -37,6 +37,9 @@
 #define MSK_INT_TRIGGERED   0b00000001
 #define MSK_INT_OUT_EN      0b00000010
 
+#define ACCUMULATION_THRESHOLD 5
+#define SCALE_FACTOR 1.5f
+
 /* Exposed variables */
 volatile float speed_min = 1.0f;
 volatile float speed_max = 5.0f;
@@ -63,6 +66,9 @@ struct pim447_data {
     struct k_work work;
     struct gpio_callback int_gpio_cb;
     bool sw_pressed_prev;
+    int32_t accum_x;
+    int32_t accum_y;
+    uint32_t last_report_time;
 };
 
 /* Forward declaration of functions */
@@ -70,37 +76,6 @@ static void pim447_work_handler(struct k_work *work);
 static void pim447_gpio_callback(const struct device *port, struct gpio_callback *cb, gpio_port_pins_t pins);
 static int pim447_enable_interrupt(const struct pim447_config *config, bool enable);
 
-static int32_t convert_speed(int32_t value)
-{
-    LOG_INF("Converting speed: %d", value);
-
-    bool negative = (value < 0);
-
-    if (negative) {
-        value = -value;
-    }
-
-    switch (value) {
-        case 0:  value = 0;   break;
-        case 1:  value = 1;   break;
-        case 2:  value = 4;   break;
-        case 3:  value = 8;   break;
-        case 4:  value = 18;  break;
-        case 5:  value = 32;  break;
-        case 6:  value = 50;  break;
-        case 7:  value = 72;  break;
-        case 8:  value = 98;  break;
-        default: value = 127; break;
-    }
-
-    if (negative) {
-        value = -value;
-    }
-
-    LOG_INF("Converted speed: %d", value);
-
-    return value;
-}
 
 /* Work handler function */
 static void pim447_work_handler(struct k_work *work) {
@@ -124,18 +99,47 @@ static void pim447_work_handler(struct k_work *work) {
             buf[0], buf[1], buf[2], buf[3], buf[4]);
 
 
-    uint8_t MOVE_FACTOR = 1;
+ // Accumulate deltas
+    data->accum_x += delta_x;
+    data->accum_y += delta_y;
 
-    // Calculate movement deltas
-    int8_t delta_x_raw = (int8_t)buf[1] - (int8_t)buf[0]; // Right - Left
-    int8_t delta_y_raw = (int8_t)buf[3] - (int8_t)buf[2]; // Down - Up
+    uint32_t current_time = k_uptime_get_32();
+    uint32_t time_diff = current_time - data->last_report_time;
 
-    LOG_INF("Raw deltas: delta_x_raw=%d, delta_y_raw=%d", delta_x_raw, delta_y_raw);
+    // Check if we should report movement
+    if (abs(data->accum_x) >= ACCUMULATION_THRESHOLD || 
+        abs(data->accum_y) >= ACCUMULATION_THRESHOLD ||
+        time_diff >= 10) {  // Report at least every 10ms
 
+        // Apply scaling
+        float scale = 1.0f + (SCALE_FACTOR * log10f(sqrtf(data->accum_x * data->accum_x + data->accum_y * data->accum_y)));
+        int16_t scaled_delta_x = (int16_t)(data->accum_x * scale);
+        int16_t scaled_delta_y = (int16_t)(data->accum_y * scale);
 
-    int16_t delta_x = convert_speed(delta_x_raw) * MOVE_FACTOR;
-    int16_t delta_y = convert_speed(delta_y_raw) * MOVE_FACTOR;
+        LOG_INF("Reporting movement: delta_x=%d, delta_y=%d, scale=%.2f", 
+                scaled_delta_x, scaled_delta_y, scale);
 
+        /* Report relative X movement */
+        err = input_report_rel(dev, INPUT_REL_X, scaled_delta_x, true, K_NO_WAIT);
+        if (err) {
+            LOG_ERR("Failed to report delta_x: %d", err);
+        } else {
+            LOG_DBG("Reported delta_x: %d", scaled_delta_x);
+        }
+
+        /* Report relative Y movement */
+        err = input_report_rel(dev, INPUT_REL_Y, scaled_delta_y, true, K_NO_WAIT);
+        if (err) {
+            LOG_ERR("Failed to report delta_y: %d", err);
+        } else {
+            LOG_DBG("Reported delta_y: %d", scaled_delta_y);
+        }
+
+        // Reset accumulation
+        data->accum_x = 0;
+        data->accum_y = 0;
+        data->last_report_time = current_time;
+    }
 
     bool sw_pressed = (buf[4] & MSK_SWITCH_STATE) != 0;
 
@@ -169,21 +173,7 @@ static void pim447_work_handler(struct k_work *work) {
     }
 
 
-    /* Report relative X movement */
-    err = input_report_rel(dev, INPUT_REL_X, delta_x, true, K_NO_WAIT);
-    if (err) {
-        LOG_ERR("Failed to report delta_x: %d", err);
-    } else {
-        LOG_DBG("Reported delta_x: %d", delta_x);
-    }
-
-    /* Report relative Y movement */
-    err = input_report_rel(dev, INPUT_REL_Y, delta_y, true, K_NO_WAIT);
-    if (err) {
-        LOG_ERR("Failed to report delta_y: %d", err);
-    } else {
-        LOG_DBG("Reported delta_y: %d", delta_y);
-    }
+    
 
     /* Read and clear the INT status register if necessary */
     uint8_t int_status;
