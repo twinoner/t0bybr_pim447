@@ -127,14 +127,14 @@ static void pim447_work_handler(struct k_work *work) {
     uint8_t MOVE_FACTOR = 1;
 
     // Calculate movement deltas
-    uint8_t delta_x_raw = (uint8_t)buf[1] - (uint8_t)buf[0]; // Right - Left
-    uint8_t delta_y_raw = (uint8_t)buf[3] - (uint8_t)buf[2]; // Down - Up
+    int8_t delta_x_raw = (int8_t)buf[1] - (int8_t)buf[0]; // Right - Left
+    int8_t delta_y_raw = (int8_t)buf[3] - (int8_t)buf[2]; // Down - Up
 
     LOG_INF("Raw deltas: delta_x_raw=%d, delta_y_raw=%d", delta_x_raw, delta_y_raw);
 
 
-    uint16_t delta_x = convert_speed(delta_x_raw) * MOVE_FACTOR;
-    uint16_t delta_y = convert_speed(delta_y_raw) * MOVE_FACTOR;
+    int16_t delta_x = convert_speed(delta_x_raw) * MOVE_FACTOR;
+    int16_t delta_y = convert_speed(delta_y_raw) * MOVE_FACTOR;
 
 
     bool sw_pressed = (buf[4] & MSK_SWITCH_STATE) != 0;
