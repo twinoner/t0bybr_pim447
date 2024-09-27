@@ -39,7 +39,10 @@
 #define MSK_INT_OUT_EN      0b00000010
 
 #define ACCUMULATION_THRESHOLD 30
-#define SCALE_FACTOR 7.5f
+#define BASE_SCALE_FACTOR 3.0f
+#define EXPONENTIAL_FACTOR 10.0f
+#define SMOOTHING_FACTOR 0.7f
+#define REPORT_INTERVAL_MS 10
 
 /* Exposed variables */
 volatile float speed_min = 1.0f;
@@ -69,6 +72,8 @@ struct pim447_data {
     bool sw_pressed_prev;
     int32_t accum_x;
     int32_t accum_y;
+    float smooth_x;
+    float smooth_y;
     uint32_t last_report_time;
 };
 
@@ -77,6 +82,11 @@ static void pim447_work_handler(struct k_work *work);
 static void pim447_gpio_callback(const struct device *port, struct gpio_callback *cb, gpio_port_pins_t pins);
 static int pim447_enable_interrupt(const struct pim447_config *config, bool enable);
 
+static float apply_exponential_scaling(float value) {
+    float abs_value = fabsf(value);
+    float scaled = BASE_SCALE_FACTOR * powf(abs_value, EXPONENTIAL_FACTOR);
+    return (value >= 0) ? scaled : -scaled;
+}
 
 /* Work handler function */
 static void pim447_work_handler(struct k_work *work) {
@@ -100,8 +110,8 @@ static void pim447_work_handler(struct k_work *work) {
             buf[0], buf[1], buf[2], buf[3], buf[4]);
 
     // Calculate movement deltas
-    int8_t delta_x = (int8_t)buf[1] - (int8_t)buf[0]; // Right - Left
-    int8_t delta_y = (int8_t)buf[3] - (int8_t)buf[2]; // Down - Up
+    float delta_x = (float)((int8_t)buf[1] - (int8_t)buf[0]); // Right - Left
+    float delta_y = (float)((int8_t)buf[3] - (int8_t)buf[2]); // Down - Up
 
     // Accumulate deltas
     data->accum_x += delta_x;
@@ -111,34 +121,37 @@ static void pim447_work_handler(struct k_work *work) {
     uint32_t time_diff = current_time - data->last_report_time;
 
     // Check if we should report movement
-    if (abs(data->accum_x) >= ACCUMULATION_THRESHOLD || 
-        abs(data->accum_y) >= ACCUMULATION_THRESHOLD ||
-        time_diff >= 10) {  // Report at least every 10ms
+    if (fabsf(data->accum_x) >= ACCUMULATION_THRESHOLD || 
+        fabsf(data->accum_y) >= ACCUMULATION_THRESHOLD ||
+        time_diff >= REPORT_INTERVAL_MS) {
 
-        // Apply scaling
-        float scale = 1.0f + (SCALE_FACTOR * log10f(sqrtf(data->accum_x * data->accum_x + data->accum_y * data->accum_y)));
-        int16_t scaled_delta_x = (int16_t)(data->accum_x * scale);
-        int16_t scaled_delta_y = (int16_t)(data->accum_y * scale);
+        // Apply exponential scaling
+        float scaled_x = apply_exponential_scaling(data->accum_x);
+        float scaled_y = apply_exponential_scaling(data->accum_y);
 
-        LOG_INF("Reporting movement: delta_x=%d, delta_y=%d, scale=%.2f", 
-                scaled_delta_x, scaled_delta_y, scale);
+        // Apply smoothing
+        data->smooth_x = (SMOOTHING_FACTOR * data->smooth_x) + ((1 - SMOOTHING_FACTOR) * scaled_x);
+        data->smooth_y = (SMOOTHING_FACTOR * data->smooth_y) + ((1 - SMOOTHING_FACTOR) * scaled_y);
 
-        int err;
+        int16_t report_x = (int16_t)roundf(data->smooth_x);
+        int16_t report_y = (int16_t)roundf(data->smooth_y);
+
+        LOG_INF("Reporting movement: delta_x=%d, delta_y=%d", report_x, report_y);
 
         /* Report relative X movement */
-        err = input_report_rel(dev, INPUT_REL_X, scaled_delta_x, true, K_NO_WAIT);
+        err = input_report_rel(dev, INPUT_REL_X, report_x, true, K_NO_WAIT);
         if (err) {
             LOG_ERR("Failed to report delta_x: %d", err);
         } else {
-            LOG_DBG("Reported delta_x: %d", scaled_delta_x);
+            LOG_DBG("Reported delta_x: %d", report_x);
         }
 
         /* Report relative Y movement */
-        err = input_report_rel(dev, INPUT_REL_Y, scaled_delta_y, true, K_NO_WAIT);
+        err = input_report_rel(dev, INPUT_REL_Y, report_y, true, K_NO_WAIT);
         if (err) {
             LOG_ERR("Failed to report delta_y: %d", err);
         } else {
-            LOG_DBG("Reported delta_y: %d", scaled_delta_y);
+            LOG_DBG("Reported delta_y: %d", report_y);
         }
 
         // Reset accumulation
@@ -146,6 +159,7 @@ static void pim447_work_handler(struct k_work *work) {
         data->accum_y = 0;
         data->last_report_time = current_time;
     }
+
 
     bool sw_pressed = (buf[4] & MSK_SWITCH_STATE) != 0;
 
@@ -351,6 +365,8 @@ static int pim447_init(const struct device *dev) {
     data->sw_pressed_prev = false;
     data->accum_x = 0;
     data->accum_y = 0;
+    data->smooth_x = 0;
+    data->smooth_y = 0;
     data->last_report_time = k_uptime_get_32();
 
     /* Check if the I2C device is ready */
