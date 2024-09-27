@@ -42,7 +42,7 @@
 volatile uint8_t ACCUMULATION_THRESHOLD = 30;
 volatile float BASE_SCALE_FACTOR = 0.5f;
 volatile float EXPONENTIAL_FACTOR = 2.0f;
-volatile float SMOOTHING_FACTOR = 0.7f;
+volatile float SMOOTHING_FACTOR = 0.2f;
 volatile uint8_t REPORT_INTERVAL_MS = 10;
 
 /* Mutex for thread safety */
