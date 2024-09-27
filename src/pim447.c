@@ -40,6 +40,8 @@
 #define MOVEMENT_HISTORY_SIZE 5
 #define DIRECTION_COUNT 4
 
+#define BUTTON_DEBOUNCE_TIME K_MSEC(50)
+
 #define LOG_FLOAT(value) ((int)(value * 100))  // Log float as integer * 100
 
 
@@ -123,12 +125,20 @@ static int pim447_disable(const struct device *dev);
 static int pim447_init(const struct device *dev);
 
 static float smooth_value(float current, float target, float factor) {
+    // Increase the minimum change threshold
+    float min_change = 0.1f;
+    if (fabsf(target - current) < min_change) {
+        return current;
+    }
     return current + factor * (target - current);
 }
 
 static float apply_exponential_scaling(float value, float base) {
     float sign = (value >= 0) ? 1 : -1;
-    return sign * (powf(base, fabsf(value)) - 1);
+    float abs_value = fabsf(value);
+    // Limit the maximum scaled value
+    float max_scaled = 100.0f;
+    return sign * fminf(powf(base, abs_value) - 1, max_scaled);
 }
 
 static void interpolate_movement(float start_x, float start_y, float end_x, float end_y, int steps, const struct device *dev) {
@@ -212,6 +222,9 @@ static void process_direction(struct k_work *work)
     scaled_value = apply_non_linear_scaling(scaled_value);
     LOG_INF("Non-linear scaled value: %d", LOG_FLOAT(scaled_value));
 
+    float max_value = 100.0f;
+    scaled_value = fminf(fabsf(scaled_value), max_value) * (scaled_value >= 0 ? 1 : -1);
+
     // Accumulate movement
     switch (data->dir) {
         case DIR_LEFT:
@@ -252,8 +265,8 @@ static void report_movement(struct k_work *work)
 
     LOG_INF("Accumulated movement: x=%d, y=%d", x_movement, y_movement);
 
-    // Only report if movement exceeds threshold
-    if (abs(x_movement) > MOVEMENT_THRESHOLD || abs(y_movement) > MOVEMENT_THRESHOLD) {
+    // Report movement if it exceeds the reduced threshold
+    if (abs(x_movement) >= MOVEMENT_THRESHOLD || abs(y_movement) >= MOVEMENT_THRESHOLD) {
         int err;
         err = input_report_rel(data->dev, INPUT_REL_X, x_movement, false, K_NO_WAIT);
         if (err) {
@@ -316,13 +329,21 @@ static void pim447_work_handler(struct k_work *work)
         k_work_submit_to_queue(data->trackball_workq, &data->direction_works[i]);
     }
 
+    static int64_t last_button_change = 0;
+    int64_t now = k_uptime_get();
+
     bool sw_pressed = (buf[4] & MSK_SWITCH_STATE) != 0;
 
-    int err = input_report_key(dev, INPUT_BTN_0, sw_pressed ? 1 : 0, true, K_FOREVER);
-    if (err) {
-        LOG_ERR("Failed to report switch state: %d", err);
-    } else {
-        LOG_DBG("Reported switch state: %d", sw_pressed);
+    // Only report switch state change if debounce time has passed
+    if (sw_pressed != data->sw_pressed_prev && (now - last_button_change) > BUTTON_DEBOUNCE_TIME) {
+        int err = input_report_key(dev, INPUT_BTN_0, sw_pressed, true, K_FOREVER);
+        if (err) {
+            LOG_ERR("Failed to report switch state: %d", err);
+        } else {
+            LOG_DBG("Reported switch state: %d", sw_pressed);
+        }
+        data->sw_pressed_prev = sw_pressed;
+        last_button_change = now;
     }
 
     /* Clear movement registers by writing zeros */
