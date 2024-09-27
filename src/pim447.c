@@ -32,12 +32,12 @@ struct direction_data {
     uint8_t reg;
     int8_t value;
     uint16_t input_code;
+    struct k_work work;  // Add this line
 };
 
 /* Device data structure */
 struct pim447_data {
     const struct device *dev;
-    struct k_work direction_works[DIRECTION_COUNT];
     struct direction_data direction_data[DIRECTION_COUNT];
     struct gpio_callback int_gpio_cb;
 };
@@ -77,7 +77,7 @@ static void pim447_gpio_callback(const struct device *port, struct gpio_callback
 
     /* Submit work for each direction */
     for (int i = 0; i < DIRECTION_COUNT; i++) {
-        k_work_submit(&data->direction_works[i]);
+        k_work_submit(&data->direction_data[i].work);
     }
 
     /* Clear the INT status register */
@@ -105,11 +105,11 @@ static int pim447_init(const struct device *dev)
     static const int8_t direction_multipliers[DIRECTION_COUNT] = {-1, 1, -1, 1};
 
     for (int i = 0; i < DIRECTION_COUNT; i++) {
-        k_work_init(&data->direction_works[i], process_direction);
         data->direction_data[i].dev = dev;
         data->direction_data[i].reg = direction_regs[i];
         data->direction_data[i].input_code = input_codes[i];
         data->direction_data[i].value *= direction_multipliers[i];
+        k_work_init(&data->direction_data[i].work, process_direction);
     }
 
     /* Configure interrupt GPIO */
