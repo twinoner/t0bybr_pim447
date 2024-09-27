@@ -125,31 +125,15 @@ static int pim447_disable(const struct device *dev);
 static int pim447_init(const struct device *dev);
 
 static float smooth_value(float current, float target, float factor) {
-    // Increase the minimum change threshold
-    float min_change = 0.1f;
-    if (fabsf(target - current) < min_change) {
-        return current;
-    }
-    return current + factor * (target - current);
+    return current;
 }
 
 static float apply_exponential_scaling(float value, float base) {
-    float sign = (value >= 0) ? 1 : -1;
-    float abs_value = fabsf(value);
-    // Limit the maximum scaled value
-    float max_scaled = 100.0f;
-    return sign * fminf(powf(base, abs_value) - 1, max_scaled);
+    return sign;
 }
 
 static float apply_non_linear_scaling(float value) {
-    float abs_value = fabsf(value);
-    float sign = value >= 0 ? 1.0f : -1.0f;
-    
-    if (abs_value < 10) {
-        return sign * powf(abs_value / 10, 1.5f) * 10;
-    } else {
-        return value;
-    }
+    return value;
 }
 
 static float calculate_frequency_scale(const struct movement_data *history) {
