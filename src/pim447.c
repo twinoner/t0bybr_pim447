@@ -48,6 +48,8 @@ volatile float MAX_SCALE_FACTOR = 5.0f;
 volatile float SMOOTHING_FACTOR = 0.2f;
 volatile uint8_t INTERPOLATION_STEPS = 5;
 volatile float EXPONENTIAL_BASE = 1.5f;
+volatile float DIAGONAL_THRESHOLD = 0.7f;
+volatile float DIAGONAL_BOOST = 1.2f;
 
 /* Mutex for thread safety */
 K_MUTEX_DEFINE(variable_mutex);
@@ -73,7 +75,6 @@ struct movement_data {
     int8_t delta_y;
     uint32_t timestamp;
 };
-
 
 static struct movement_data movement_history[MOVEMENT_HISTORY_SIZE];
 static int history_index = 0;
@@ -130,11 +131,61 @@ static float calculate_frequency_scale(const struct movement_data *history) {
     return MIN(scale, MAX_SCALE_FACTOR);
 }
 
+static void process_movement(const struct device *dev, float delta_x, float delta_y) {
+    // Calculate the magnitude of the movement
+    float magnitude = sqrtf(delta_x * delta_x + delta_y * delta_y);
+
+    // Normalize the movement
+    float norm_x = delta_x / magnitude;
+    float norm_y = delta_y / magnitude;
+
+    // Check if the movement is diagonal
+    k_mutex_lock(&variable_mutex, K_FOREVER);
+    bool is_diagonal = (fabsf(norm_x) > DIAGONAL_THRESHOLD) && (fabsf(norm_y) > DIAGONAL_THRESHOLD);
+    k_mutex_unlock(&variable_mutex);
+
+    // Apply smoothing
+    k_mutex_lock(&variable_mutex, K_FOREVER);
+    float smoothing_factor = SMOOTHING_FACTOR;
+    k_mutex_unlock(&variable_mutex);
+
+    static float smooth_x = 0, smooth_y = 0;
+    smooth_x = smooth_value(smooth_x, delta_x, smoothing_factor);
+    smooth_y = smooth_value(smooth_y, delta_y, smoothing_factor);
+
+    // Calculate scaling based on movement frequency
+    float scale = calculate_frequency_scale(movement_history);
+
+    // Apply scaling and exponential function
+    k_mutex_lock(&variable_mutex, K_FOREVER);
+    float exponential_base = EXPONENTIAL_BASE;
+    k_mutex_unlock(&variable_mutex);
+
+    float scaled_x = apply_exponential_scaling(smooth_x * scale, exponential_base);
+    float scaled_y = apply_exponential_scaling(smooth_y * scale, exponential_base);
+
+    // Apply diagonal boost if movement is diagonal
+    k_mutex_lock(&variable_mutex, K_FOREVER);
+    if (is_diagonal) {
+        scaled_x *= DIAGONAL_BOOST;
+        scaled_y *= DIAGONAL_BOOST;
+    }
+    k_mutex_unlock(&variable_mutex);
+
+    // Interpolate movement
+    k_mutex_lock(&variable_mutex, K_FOREVER);
+    uint8_t interpolation_steps = INTERPOLATION_STEPS;
+    k_mutex_unlock(&variable_mutex);
+
+    interpolate_movement(0, 0, scaled_x, scaled_y, interpolation_steps, dev);
+
+    LOG_DBG("Processed movement: x=%.2f, y=%.2f, diagonal=%d", scaled_x, scaled_y, is_diagonal);
+}
+
 /* Forward declaration of functions */
 static void pim447_work_handler(struct k_work *work);
 static void pim447_gpio_callback(const struct device *port, struct gpio_callback *cb, gpio_port_pins_t pins);
 static int pim447_enable_interrupt(const struct pim447_config *config, bool enable);
-
 
 /* Work handler function */
 static void pim447_work_handler(struct k_work *work) {
@@ -169,22 +220,8 @@ static void pim447_work_handler(struct k_work *work) {
 
         history_index = (history_index + 1) % MOVEMENT_HISTORY_SIZE;
 
-        // Calculate scaling based on movement frequency
-        float scale = calculate_frequency_scale(movement_history);
-
-        // Apply smoothing
-        static float smooth_x = 0, smooth_y = 0;
-        smooth_x = smooth_value(smooth_x, delta_x, SMOOTHING_FACTOR);
-        smooth_y = smooth_value(smooth_y, delta_y, SMOOTHING_FACTOR);
-
-        // Apply scaling and exponential function
-        float scaled_x = apply_exponential_scaling(smooth_x * scale, EXPONENTIAL_BASE);
-        float scaled_y = apply_exponential_scaling(smooth_y * scale, EXPONENTIAL_BASE);
-
-        // Interpolate movement
-        interpolate_movement(0, 0, scaled_x, scaled_y, INTERPOLATION_STEPS, dev);
-
-        LOG_DBG("Smoothed and scaled movement: x=%.2f, y=%.2f", scaled_x, scaled_y);
+        // Process the movement
+        process_movement(dev, (float)delta_x, (float)delta_y);
     }
 
     bool sw_pressed = (buf[4] & MSK_SWITCH_STATE) != 0;
