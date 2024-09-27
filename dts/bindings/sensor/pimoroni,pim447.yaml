@@ -14,12 +14,6 @@ properties:
     required: true
     description: Interrupt pin
 
-  move_factor:
-    type: int
-    required: true
-    description: The factor to multiply the movement by
-    default: 1
-
   led-red-gpios:
     type: phandle-array
     required: false
