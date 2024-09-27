@@ -141,34 +141,6 @@ static float apply_exponential_scaling(float value, float base) {
     return sign * fminf(powf(base, abs_value) - 1, max_scaled);
 }
 
-static void interpolate_movement(float start_x, float start_y, float end_x, float end_y, int steps, const struct device *dev) {
-    float step_x = (end_x - start_x) / steps;
-    float step_y = (end_y - start_y) / steps;
-
-    for (int i = 1; i <= steps; i++) {
-        float interp_x = start_x + i * step_x;
-        float interp_y = start_y + i * step_y;
-
-        int err;
-
-        /* Report relative X movement */
-        err = input_report_rel(dev, INPUT_REL_X, (int)interp_x, false, K_NO_WAIT);
-        if (err) {
-            LOG_ERR("Failed to report delta_x: %d", err);
-        } else {
-            LOG_DBG("Reported delta_x: %d", (int)interp_x);
-        }
-
-        /* Report relative Y movement */
-        err = input_report_rel(dev, INPUT_REL_Y, (int)interp_y, true, K_NO_WAIT);
-        if (err) {
-            LOG_ERR("Failed to report delta_y: %d", err);
-        } else {
-            LOG_DBG("Reported delta_y: %d", (int)interp_y);
-        }
-    }
-}
-
 static float apply_non_linear_scaling(float value) {
     float abs_value = fabsf(value);
     float sign = value >= 0 ? 1.0f : -1.0f;
@@ -256,35 +228,40 @@ static void report_movement(struct k_work *work)
     struct pim447_data *data = CONTAINER_OF(work, struct pim447_data, work.work);
     int32_t x_movement, y_movement;
 
-    LOG_INF("Reporting movement");
-
     k_sem_take(&data->movement_sem, K_FOREVER);
 
     // Atomically get and reset accumulated movement
     x_movement = atomic_set(&data->accumulated_x, 0);
     y_movement = atomic_set(&data->accumulated_y, 0);
 
-    LOG_INF("Accumulated movement: x=%d, y=%d", x_movement, y_movement);
+    LOG_INF("Accumulated movement: x=%ld, y=%ld", (long)x_movement, (long)y_movement);
 
     // Scale down the movement to reasonable values
-    float scaled_x = (float)x_movement / 100.0f;
-    float scaled_y = (float)y_movement / 100.0f;
+    int scaled_x = x_movement / 100;
+    int scaled_y = y_movement / 100;
 
-    // Report movement if it exceeds the reduced threshold
-    if (fabsf(scaled_x) >= MOVEMENT_THRESHOLD || fabsf(scaled_y) >= MOVEMENT_THRESHOLD) {
-        interpolate_movement(0, 0, scaled_x, scaled_y, INTERPOLATION_STEPS, data->dev);
-        LOG_INF("Reported interpolated movement: x=%.2f, y=%.2f", scaled_x, scaled_y);
+    // Report movement if it's non-zero
+    if (scaled_x != 0 || scaled_y != 0) {
+        int err;
+        err = input_report_rel(data->dev, INPUT_REL_X, scaled_x, false, K_NO_WAIT);
+        if (err) {
+            LOG_ERR("Failed to report X movement: %d", err);
+        } else {
+            LOG_INF("Reported X movement: %d", scaled_x);
+        }
+        err = input_report_rel(data->dev, INPUT_REL_Y, scaled_y, true, K_NO_WAIT);
+        if (err) {
+            LOG_ERR("Failed to report Y movement: %d", err);
+        } else {
+            LOG_INF("Reported Y movement: %d", scaled_y);
+        }
+        LOG_INF("Reported movement: x=%d, y=%d", scaled_x, scaled_y);
     } else {
-        LOG_INF("Movement below threshold, not reporting");
+        LOG_INF("No movement to report");
     }
 
     // Schedule next report
-    int ret = k_work_schedule(&data->work, K_MSEC(10));
-    if (ret < 0) {
-        LOG_ERR("Failed to schedule next report: %d", ret);
-    } else {
-        LOG_INF("Next report scheduled successfully");
-    }
+    k_work_schedule(&data->work, K_MSEC(10));
 }
 
 static void pim447_work_handler(struct k_work *work)
