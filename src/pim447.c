@@ -229,21 +229,20 @@ static void process_direction(struct k_work *work)
     switch (data->dir) {
         case DIR_LEFT:
             atomic_add(&dev_data->accumulated_x, -scaled_value);
-            LOG_INF("Accumulated X: %d", atomic_get(&dev_data->accumulated_x));
+            LOG_INF("Accumulated X: %ld", (long)atomic_get(&dev_data->accumulated_x));
             break;
         case DIR_RIGHT:
             atomic_add(&dev_data->accumulated_x, scaled_value);
-            LOG_INF("Accumulated X: %d", atomic_get(&dev_data->accumulated_x));
+            LOG_INF("Accumulated X: %ld", (long)atomic_get(&dev_data->accumulated_x));
             break;
         case DIR_UP:
             atomic_add(&dev_data->accumulated_y, -scaled_value);
-            LOG_INF("Accumulated Y: %d", atomic_get(&dev_data->accumulated_y));
+            LOG_INF("Accumulated Y: %ld", (long)atomic_get(&dev_data->accumulated_y));
             break;
         case DIR_DOWN:
             atomic_add(&dev_data->accumulated_y, scaled_value);
-            LOG_INF("Accumulated Y: %d", atomic_get(&dev_data->accumulated_y));
+            LOG_INF("Accumulated Y: %ld", (long)atomic_get(&dev_data->accumulated_y));
             break;
-    }
 
     k_sem_give(&dev_data->movement_sem);
 
