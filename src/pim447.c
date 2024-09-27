@@ -129,7 +129,7 @@ static float smooth_value(float current, float target, float factor) {
 }
 
 static float apply_exponential_scaling(float value, float base) {
-    return sign;
+    return value;
 }
 
 static float apply_non_linear_scaling(float value) {
@@ -446,7 +446,7 @@ static int pim447_enable(const struct device *dev) {
     }
 
     /* Configure the GPIO interrupt for falling edge (active low) */
-    ret = gpio_pin_interrupt_configure_dt(&config->int_gpio, GPIO_INT_EDGE_FALLING);
+    ret = gpio_pin_interrupt_configure_dt(&config->int_gpio, GPIO_INT_EDGE_RAISING);
     if (ret) {
         LOG_ERR("Failed to configure GPIO interrupt");
         return ret;
