@@ -18,13 +18,13 @@ LOG_MODULE_DECLARE(zmk, CONFIG_ZMK_LOG_LEVEL);
 #include "dt-bindings/trackball_actions.h"
 
 /* Extern variables */
-extern volatile uint8_t FREQUENCY_THRESHOLD;
-extern volatile float BASE_SCALE_FACTOR;
-extern volatile float MAX_SCALE_FACTOR;
-extern volatile float SMOOTHING_FACTOR;
-extern volatile uint8_t INTERPOLATION_STEPS;
-extern volatile float EXPONENTIAL_BASE;
-extern struct k_mutex variable_mutex;
+// extern volatile uint8_t FREQUENCY_THRESHOLD;
+// extern volatile float BASE_SCALE_FACTOR;
+// extern volatile float MAX_SCALE_FACTOR;
+// extern volatile float SMOOTHING_FACTOR;
+// extern volatile uint8_t INTERPOLATION_STEPS;
+// extern volatile float EXPONENTIAL_BASE;
+// extern struct k_mutex variable_mutex;
 
 /* Constants for limits and steps */
 #define BASE_SCALE_STEP 0.1f
@@ -64,90 +64,90 @@ static int behavior_trackball_adjust_binding_pressed(struct zmk_behavior_binding
 
     k_mutex_lock(&variable_mutex, K_FOREVER);
 
-    switch (action) {
-        case TB_INC_BASE_SCALE:
-            BASE_SCALE_FACTOR += BASE_SCALE_STEP;
-            if (BASE_SCALE_FACTOR > BASE_SCALE_MAX) {
-                BASE_SCALE_FACTOR = BASE_SCALE_MAX;
-            }
-            LOG_INF("BASE_SCALE_FACTOR increased to %d.%02d", 
-                    (int)BASE_SCALE_FACTOR, (int)(BASE_SCALE_FACTOR * 100) % 100);
-            break;
-        case TB_DEC_BASE_SCALE:
-            BASE_SCALE_FACTOR -= BASE_SCALE_STEP;
-            if (BASE_SCALE_FACTOR < BASE_SCALE_MIN) {
-                BASE_SCALE_FACTOR = BASE_SCALE_MIN;
-            }
-            LOG_INF("BASE_SCALE_FACTOR decreased to %d.%02d", 
-                    (int)BASE_SCALE_FACTOR, (int)(BASE_SCALE_FACTOR * 100) % 100);
-            break;
-        case TB_INC_FREQUENCY_THRESHOLD:
-            FREQUENCY_THRESHOLD += FREQUENCY_THRESHOLD_STEP;
-            if (FREQUENCY_THRESHOLD > FREQUENCY_THRESHOLD_MAX) {
-                FREQUENCY_THRESHOLD = FREQUENCY_THRESHOLD_MAX;
-            }
-            LOG_INF("FREQUENCY_THRESHOLD increased to %d", (int)FREQUENCY_THRESHOLD);
-            break;
-        case TB_DEC_FREQUENCY_THRESHOLD:
-            FREQUENCY_THRESHOLD -= FREQUENCY_THRESHOLD_STEP;
-            if (FREQUENCY_THRESHOLD < FREQUENCY_THRESHOLD_MIN) {
-                FREQUENCY_THRESHOLD = FREQUENCY_THRESHOLD_MIN;
-            }
-            LOG_INF("FREQUENCY_THRESHOLD decreased to %d", (int)FREQUENCY_THRESHOLD);
-            break;
-        case TB_INC_SMOOTHING_FACTOR:
-            SMOOTHING_FACTOR += SMOOTHING_FACTOR_STEP;
-            if (SMOOTHING_FACTOR > SMOOTHING_FACTOR_MAX) {
-                SMOOTHING_FACTOR = SMOOTHING_FACTOR_MAX;
-            }
-            LOG_INF("SMOOTHING_FACTOR increased to %d.%02d",
-            (int)SMOOTHING_FACTOR, (int)(SMOOTHING_FACTOR * 100) % 100);
+    // switch (action) {
+    //     case TB_INC_BASE_SCALE:
+    //         BASE_SCALE_FACTOR += BASE_SCALE_STEP;
+    //         if (BASE_SCALE_FACTOR > BASE_SCALE_MAX) {
+    //             BASE_SCALE_FACTOR = BASE_SCALE_MAX;
+    //         }
+    //         LOG_INF("BASE_SCALE_FACTOR increased to %d.%02d", 
+    //                 (int)BASE_SCALE_FACTOR, (int)(BASE_SCALE_FACTOR * 100) % 100);
+    //         break;
+    //     case TB_DEC_BASE_SCALE:
+    //         BASE_SCALE_FACTOR -= BASE_SCALE_STEP;
+    //         if (BASE_SCALE_FACTOR < BASE_SCALE_MIN) {
+    //             BASE_SCALE_FACTOR = BASE_SCALE_MIN;
+    //         }
+    //         LOG_INF("BASE_SCALE_FACTOR decreased to %d.%02d", 
+    //                 (int)BASE_SCALE_FACTOR, (int)(BASE_SCALE_FACTOR * 100) % 100);
+    //         break;
+    //     case TB_INC_FREQUENCY_THRESHOLD:
+    //         FREQUENCY_THRESHOLD += FREQUENCY_THRESHOLD_STEP;
+    //         if (FREQUENCY_THRESHOLD > FREQUENCY_THRESHOLD_MAX) {
+    //             FREQUENCY_THRESHOLD = FREQUENCY_THRESHOLD_MAX;
+    //         }
+    //         LOG_INF("FREQUENCY_THRESHOLD increased to %d", (int)FREQUENCY_THRESHOLD);
+    //         break;
+    //     case TB_DEC_FREQUENCY_THRESHOLD:
+    //         FREQUENCY_THRESHOLD -= FREQUENCY_THRESHOLD_STEP;
+    //         if (FREQUENCY_THRESHOLD < FREQUENCY_THRESHOLD_MIN) {
+    //             FREQUENCY_THRESHOLD = FREQUENCY_THRESHOLD_MIN;
+    //         }
+    //         LOG_INF("FREQUENCY_THRESHOLD decreased to %d", (int)FREQUENCY_THRESHOLD);
+    //         break;
+    //     case TB_INC_SMOOTHING_FACTOR:
+    //         SMOOTHING_FACTOR += SMOOTHING_FACTOR_STEP;
+    //         if (SMOOTHING_FACTOR > SMOOTHING_FACTOR_MAX) {
+    //             SMOOTHING_FACTOR = SMOOTHING_FACTOR_MAX;
+    //         }
+    //         LOG_INF("SMOOTHING_FACTOR increased to %d.%02d",
+    //         (int)SMOOTHING_FACTOR, (int)(SMOOTHING_FACTOR * 100) % 100);
             
-            break;
-        case TB_DEC_SMOOTHING_FACTOR:
-            SMOOTHING_FACTOR -= SMOOTHING_FACTOR_STEP;
-            if (SMOOTHING_FACTOR < SMOOTHING_FACTOR_MIN) {
-                SMOOTHING_FACTOR = SMOOTHING_FACTOR_MIN;
-            }
-            LOG_INF("SMOOTHING_FACTOR decreased to %d.%02d",
-            (int)SMOOTHING_FACTOR, (int)(SMOOTHING_FACTOR * 100) % 100);
-            break;
-        case TB_INC_INTERPOLATION_STEPS:
-            INTERPOLATION_STEPS += INTERPOLATION_STEPS_STEP;
-            if (INTERPOLATION_STEPS > INTERPOLATION_STEPS_MAX) {
-                INTERPOLATION_STEPS = INTERPOLATION_STEPS_MAX;
-            }
-            LOG_INF("INTERPOLATION_STEPS increased to %d.%02d",
-            (int)INTERPOLATION_STEPS, (int)(INTERPOLATION_STEPS * 100) % 100);
-            break;
-        case TB_DEC_INTERPOLATION_STEPS:
-            INTERPOLATION_STEPS -= INTERPOLATION_STEPS_STEP;
-            if (INTERPOLATION_STEPS < INTERPOLATION_STEPS_MIN) {
-                INTERPOLATION_STEPS = INTERPOLATION_STEPS_MIN;
-            }
-            LOG_INF("INTERPOLATION_STEPS decreased to %d.%02d",
-            (int)INTERPOLATION_STEPS, (int)(INTERPOLATION_STEPS * 100) % 100);
-            break;
-        case TB_INC_EXPONENTIAL_BASE:
-            EXPONENTIAL_BASE += EXPONENTIAL_BASE_STEP;
-            if (EXPONENTIAL_BASE > EXPONENTIAL_BASE_MAX) {
-                EXPONENTIAL_BASE = EXPONENTIAL_BASE_MAX;
-            }
-            LOG_INF("EXPONENTIAL_BASE increased to %d.%02d",
-            (int)EXPONENTIAL_BASE, (int)(EXPONENTIAL_BASE * 100) % 100);
-            break;
-        case TB_DEC_EXPONENTIAL_BASE:
-            EXPONENTIAL_BASE -= EXPONENTIAL_BASE_STEP;
-            if (EXPONENTIAL_BASE < EXPONENTIAL_BASE_MIN) {
-                EXPONENTIAL_BASE = EXPONENTIAL_BASE_MIN;
-            }
-            LOG_INF("EXPONENTIAL_BASE decreased to %d.%02d",
-            (int)EXPONENTIAL_BASE, (int)(EXPONENTIAL_BASE * 100) % 100);
-            break;
-        default:
-            LOG_WRN("Unknown trackball adjustment action: %d", action);
-            break;
-    }
+    //         break;
+    //     case TB_DEC_SMOOTHING_FACTOR:
+    //         SMOOTHING_FACTOR -= SMOOTHING_FACTOR_STEP;
+    //         if (SMOOTHING_FACTOR < SMOOTHING_FACTOR_MIN) {
+    //             SMOOTHING_FACTOR = SMOOTHING_FACTOR_MIN;
+    //         }
+    //         LOG_INF("SMOOTHING_FACTOR decreased to %d.%02d",
+    //         (int)SMOOTHING_FACTOR, (int)(SMOOTHING_FACTOR * 100) % 100);
+    //         break;
+    //     case TB_INC_INTERPOLATION_STEPS:
+    //         INTERPOLATION_STEPS += INTERPOLATION_STEPS_STEP;
+    //         if (INTERPOLATION_STEPS > INTERPOLATION_STEPS_MAX) {
+    //             INTERPOLATION_STEPS = INTERPOLATION_STEPS_MAX;
+    //         }
+    //         LOG_INF("INTERPOLATION_STEPS increased to %d.%02d",
+    //         (int)INTERPOLATION_STEPS, (int)(INTERPOLATION_STEPS * 100) % 100);
+    //         break;
+    //     case TB_DEC_INTERPOLATION_STEPS:
+    //         INTERPOLATION_STEPS -= INTERPOLATION_STEPS_STEP;
+    //         if (INTERPOLATION_STEPS < INTERPOLATION_STEPS_MIN) {
+    //             INTERPOLATION_STEPS = INTERPOLATION_STEPS_MIN;
+    //         }
+    //         LOG_INF("INTERPOLATION_STEPS decreased to %d.%02d",
+    //         (int)INTERPOLATION_STEPS, (int)(INTERPOLATION_STEPS * 100) % 100);
+    //         break;
+    //     case TB_INC_EXPONENTIAL_BASE:
+    //         EXPONENTIAL_BASE += EXPONENTIAL_BASE_STEP;
+    //         if (EXPONENTIAL_BASE > EXPONENTIAL_BASE_MAX) {
+    //             EXPONENTIAL_BASE = EXPONENTIAL_BASE_MAX;
+    //         }
+    //         LOG_INF("EXPONENTIAL_BASE increased to %d.%02d",
+    //         (int)EXPONENTIAL_BASE, (int)(EXPONENTIAL_BASE * 100) % 100);
+    //         break;
+    //     case TB_DEC_EXPONENTIAL_BASE:
+    //         EXPONENTIAL_BASE -= EXPONENTIAL_BASE_STEP;
+    //         if (EXPONENTIAL_BASE < EXPONENTIAL_BASE_MIN) {
+    //             EXPONENTIAL_BASE = EXPONENTIAL_BASE_MIN;
+    //         }
+    //         LOG_INF("EXPONENTIAL_BASE decreased to %d.%02d",
+    //         (int)EXPONENTIAL_BASE, (int)(EXPONENTIAL_BASE * 100) % 100);
+    //         break;
+    //     default:
+    //         LOG_WRN("Unknown trackball adjustment action: %d", action);
+    //         break;
+    // }
 
     k_mutex_unlock(&variable_mutex);
 
