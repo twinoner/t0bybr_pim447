@@ -38,7 +38,7 @@
 #define MSK_INT_TRIGGERED   0b00000001
 #define MSK_INT_OUT_EN      0b00000010
 
-#define MOVEMENT_HISTORY_SIZE 5;
+#define MOVEMENT_HISTORY_SIZE 5
 
 /* Exposed variables */
 volatile uint8_t FREQUENCY_THRESHOLD = 100;
