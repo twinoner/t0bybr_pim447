@@ -74,14 +74,14 @@ static int behavior_trackball_adjust_binding_pressed(struct zmk_behavior_binding
             if (FREQUENCY_THRESHOLD > FREQUENCY_THRESHOLD_MAX) {
                 FREQUENCY_THRESHOLD = FREQUENCY_THRESHOLD_MAX;
             }
-            LOG_INF("FREQUENCY_THRESHOLD increased to %d", (int)FREQUENCY_THRESHOLD;
+            LOG_INF("FREQUENCY_THRESHOLD increased to %d", (int)FREQUENCY_THRESHOLD);
             break;
         case TB_DEC_FREQUENCY_THRESHOLD:
             FREQUENCY_THRESHOLD -= FREQUENCY_THRESHOLD_STEP;
             if (FREQUENCY_THRESHOLD < FREQUENCY_THRESHOLD_MIN) {
                 FREQUENCY_THRESHOLD = FREQUENCY_THRESHOLD_MIN;
             }
-            LOG_INF("FREQUENCY_THRESHOLD decreased to %d", (int)FREQUENCY_THRESHOLD;
+            LOG_INF("FREQUENCY_THRESHOLD decreased to %d", (int)FREQUENCY_THRESHOLD);
             break;
         default:
             LOG_WRN("Unknown trackball adjustment action: %d", action);

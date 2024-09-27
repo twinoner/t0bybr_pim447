@@ -150,8 +150,6 @@ static void pim447_work_handler(struct k_work *work) {
             LOG_DBG("Reported delta_y: %d", scaled_y);
         }
 
-        LOG_INF("Movement: (%d, %d), Scale: %.2f, Scaled: (%.2f, %.2f)", 
-                delta_x, delta_y, scale, scaled_x, scaled_y);
     }
 
 
