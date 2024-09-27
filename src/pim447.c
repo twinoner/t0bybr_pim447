@@ -129,8 +129,8 @@ static int pim447_init(const struct device *dev)
     i2c_reg_write_byte(config->i2c_dev, config->i2c_addr, REG_INT, int_reg);
 
     LOG_INF("PIM447 driver initialized");
-
-    return 0;
+    
+    return input_register_device(dev, "PIM447", INPUT_TYPE_REL);
 }
 
 #define PIM447_INIT(inst)                                               \
