@@ -329,13 +329,14 @@ static void pim447_work_handler(struct k_work *work)
         k_work_submit_to_queue(data->trackball_workq, &data->direction_works[i]);
     }
 
-    static int64_t last_button_change = 0;
+   static int64_t last_button_change = 0;
     int64_t now = k_uptime_get();
 
     bool sw_pressed = (buf[4] & MSK_SWITCH_STATE) != 0;
 
     // Only report switch state change if debounce time has passed
-    if (sw_pressed != data->sw_pressed_prev && (now - last_button_change) > BUTTON_DEBOUNCE_TIME) {
+    if (sw_pressed != data->sw_pressed_prev && 
+        (now - last_button_change) > (int64_t)BUTTON_DEBOUNCE_TIME_MS) {
         int err = input_report_key(dev, INPUT_BTN_0, sw_pressed, true, K_FOREVER);
         if (err) {
             LOG_ERR("Failed to report switch state: %d", err);
