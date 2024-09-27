@@ -40,6 +40,9 @@
 #define MOVEMENT_HISTORY_SIZE 5
 #define DIRECTION_COUNT 4
 
+#define LOG_FLOAT(value) ((int)(value * 100))  // Log float as integer * 100
+
+
 /* Exposed variables */
 volatile uint8_t FREQUENCY_THRESHOLD = 100;
 volatile float BASE_SCALE_FACTOR = 1.0f;
@@ -50,7 +53,7 @@ volatile float EXPONENTIAL_BASE = 1.5f;
 volatile float DIAGONAL_THRESHOLD = 0.7f;
 volatile float DIAGONAL_BOOST = 1.2f;
 volatile uint8_t CALIBRATION_SAMPLES = 100;
-volatile uint8_t  MOVEMENT_THRESHOLD = 2;
+volatile uint8_t  MOVEMENT_THRESHOLD = 1;
 
 /* Mutex for thread safety */
 K_MUTEX_DEFINE(variable_mutex);
@@ -193,45 +196,45 @@ static void process_direction(struct k_work *work)
 
     // Apply calibration offset
     float calibrated_value = data->value - dev_data->calibration_offsets[data->dir];
-    LOG_INF("Calibrated value: %.2f", calibrated_value);
+    LOG_INF("Calibrated value: %d", LOG_FLOAT(calibrated_value));
 
     // Apply smoothing
     static float smooth_values[DIRECTION_COUNT] = {0};
     smooth_values[data->dir] = smooth_value(smooth_values[data->dir], calibrated_value, smoothing_factor);
-    LOG_INF("Smoothed value: %.2f", smooth_values[data->dir]);
+    LOG_INF("Smoothed value: %d", LOG_FLOAT(smooth_values[data->dir]));
 
     // Apply scaling and exponential function
     float scale = calculate_frequency_scale(movement_history);
     float scaled_value = apply_exponential_scaling(smooth_values[data->dir] * scale, exponential_base);
-    LOG_INF("Scaled value: %.2f", scaled_value);
+    LOG_INF("Scaled value: %d", LOG_FLOAT(scaled_value));
     
     // Apply non-linear scaling
     scaled_value = apply_non_linear_scaling(scaled_value);
-    LOG_INF("Non-linear scaled value: %.2f", scaled_value);
+    LOG_INF("Non-linear scaled value: %d", LOG_FLOAT(scaled_value));
 
     // Accumulate movement
     switch (data->dir) {
         case DIR_LEFT:
             atomic_add(&dev_data->accumulated_x, -scaled_value);
-            LOG_INF("Accumulated X: %.2f", (float)atomic_get(&dev_data->accumulated_x));
+            LOG_INF("Accumulated X: %d", atomic_get(&dev_data->accumulated_x));
             break;
         case DIR_RIGHT:
             atomic_add(&dev_data->accumulated_x, scaled_value);
-            LOG_INF("Accumulated X: %.2f", (float)atomic_get(&dev_data->accumulated_x));
+            LOG_INF("Accumulated X: %d", atomic_get(&dev_data->accumulated_x));
             break;
         case DIR_UP:
             atomic_add(&dev_data->accumulated_y, -scaled_value);
-            LOG_INF("Accumulated Y: %.2f", (float)atomic_get(&dev_data->accumulated_y));
+            LOG_INF("Accumulated Y: %d", atomic_get(&dev_data->accumulated_y));
             break;
         case DIR_DOWN:
             atomic_add(&dev_data->accumulated_y, scaled_value);
-            LOG_INF("Accumulated Y: %.2f", (float)atomic_get(&dev_data->accumulated_y));
+            LOG_INF("Accumulated Y: %d", atomic_get(&dev_data->accumulated_y));
             break;
     }
 
     k_sem_give(&dev_data->movement_sem);
 
-    LOG_INF("Processed direction %d: final_value=%.2f", data->dir, scaled_value);
+    LOG_INF("Processed direction %d: final_value=%d", data->dir, LOG_FLOAT(scaled_value));
 }
 
 static void report_movement(struct k_work *work)
