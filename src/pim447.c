@@ -247,6 +247,8 @@ static void report_movement(struct k_work *work)
 
 static void pim447_work_handler(struct k_work *work)
 {
+    LOG_INF("Work handler started");
+
     struct pim447_data *data = CONTAINER_OF(work, struct pim447_data, work.work);
     const struct pim447_config *config = data->dev->config;
     const struct device *dev = data->dev;
@@ -536,9 +538,11 @@ static int pim447_init(const struct device *dev) {
                        K_THREAD_STACK_SIZEOF(trackball_stack_area),
                        CONFIG_SYSTEM_WORKQUEUE_PRIORITY - 1, NULL);
     data->trackball_workq = &trackball_work_q;
+    LOG_INF("Work queue initialized and started");
 
     /* Initialize the work handler */
-    k_work_init_delayable(&data->work, report_movement);
+    k_work_init_delayable(&data->work, pim447_work_handler);
+    LOG_INF("Delayable work initialized");
 
     /* Initialize direction-specific work items */
     for (int i = 0; i < DIRECTION_COUNT; i++) {
