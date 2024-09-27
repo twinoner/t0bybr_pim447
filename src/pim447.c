@@ -8,8 +8,8 @@
 #include <zephyr/drivers/gpio.h>
 #include <zephyr/kernel.h>
 #include <zephyr/logging/log.h>
-#include <stdlib.h>
 #include <math.h>
+
 
 /* Register Addresses */
 #define REG_LED_RED     0x00
@@ -37,45 +37,16 @@
 #define MSK_INT_TRIGGERED   0b00000001
 #define MSK_INT_OUT_EN      0b00000010
 
-#define MOVEMENT_HISTORY_SIZE 5
-#define DIRECTION_COUNT 4
-
-#define BUTTON_DEBOUNCE_TIME_MS 50
-
-#define LOG_FLOAT(value) ((int)(value * 100))  // Log float as integer * 100
-
-
 /* Exposed variables */
-volatile uint8_t FREQUENCY_THRESHOLD = 100;
-volatile float BASE_SCALE_FACTOR = 1.0f;
-volatile float MAX_SCALE_FACTOR = 5.0f;
-volatile float SMOOTHING_FACTOR = 0.2f;
-volatile uint8_t INTERPOLATION_STEPS = 5;
-volatile float EXPONENTIAL_BASE = 1.5f;
-volatile float DIAGONAL_THRESHOLD = 0.7f;
-volatile float DIAGONAL_BOOST = 1.2f;
-volatile uint8_t CALIBRATION_SAMPLES = 100;
-volatile uint8_t  MOVEMENT_THRESHOLD = 1;
+volatile float speed_min = 1.0f;
+volatile float speed_max = 5.0f;
+volatile float scale_divisor_min = 1.0f;
+volatile float scale_divisor_max = 2.0f;
 
 /* Mutex for thread safety */
 K_MUTEX_DEFINE(variable_mutex);
 
 LOG_MODULE_REGISTER(pim447, LOG_LEVEL_DBG);
-
-enum direction {
-    DIR_LEFT,
-    DIR_RIGHT,
-    DIR_UP,
-    DIR_DOWN
-};
-
-struct direction_data {
-    enum direction dir;
-    int8_t value;
-    uint32_t timestamp;
-    const struct device *dev;
-    struct k_work work;
-};
 
 /* Device configuration structure */
 struct pim447_config {
@@ -86,178 +57,26 @@ struct pim447_config {
 /* Device data structure */
 struct pim447_data {
     const struct device *dev;
-    struct k_work_delayable work;
+    struct k_work work;
     struct gpio_callback int_gpio_cb;
     bool sw_pressed_prev;
-    struct k_work direction_works[DIRECTION_COUNT];
-    struct direction_data direction_data[DIRECTION_COUNT];
-    float calibration_offsets[DIRECTION_COUNT];
-    int calibration_count;
-    struct k_work_q *trackball_workq;
-    struct k_sem movement_sem;
-    atomic_t accumulated_x;
-    atomic_t accumulated_y;
 };
 
-struct movement_data {
-    int8_t delta_x;
-    int8_t delta_y;
-    uint32_t timestamp;
-};
-
-K_THREAD_STACK_DEFINE(trackball_stack_area, 1024);
-static struct k_work_q trackball_work_q;
-
-static struct movement_data movement_history[MOVEMENT_HISTORY_SIZE];
-static int history_index = 0;
-
-/* Function prototypes */
-static float smooth_value(float current, float target, float factor);
-static float calculate_frequency_scale(const struct movement_data *history);
-static float apply_exponential_scaling(float value, float base);
-static void process_direction(struct k_work *work);
-static void report_movement(struct k_work *work);
+/* Forward declaration of functions */
 static void pim447_work_handler(struct k_work *work);
 static void pim447_gpio_callback(const struct device *port, struct gpio_callback *cb, gpio_port_pins_t pins);
 static int pim447_enable_interrupt(const struct pim447_config *config, bool enable);
-static int pim447_enable(const struct device *dev);
-static int pim447_disable(const struct device *dev);
-static int pim447_init(const struct device *dev);
 
-static float smooth_value(float current, float target, float factor) {
-    return current;
-}
-
-static float apply_exponential_scaling(float value, float base) {
-    return value;
-}
-
-static float apply_non_linear_scaling(float value) {
-    return value;
-}
-
-static float calculate_frequency_scale(const struct movement_data *history) {
-    if (history[0].timestamp == history[MOVEMENT_HISTORY_SIZE - 1].timestamp) {
-        return BASE_SCALE_FACTOR;  // Avoid division by zero
-    }
-
-    uint32_t time_span = history[0].timestamp - history[MOVEMENT_HISTORY_SIZE - 1].timestamp;
-    float movements_per_second = (float)(MOVEMENT_HISTORY_SIZE - 1) * 1000.0f / time_span;
-
-    float scale = BASE_SCALE_FACTOR * (1.0f + (movements_per_second / FREQUENCY_THRESHOLD));
-    return MIN(scale, MAX_SCALE_FACTOR);
-}
-
-static void process_direction(struct k_work *work)
-{
-    struct direction_data *data = CONTAINER_OF(work, struct direction_data, work);
-    struct pim447_data *dev_data = CONTAINER_OF(data, struct pim447_data, direction_data[data->dir]);
-    
-    
-
-    k_mutex_lock(&variable_mutex, K_FOREVER);
-    float smoothing_factor = SMOOTHING_FACTOR;
-    float exponential_base = EXPONENTIAL_BASE;
-    k_mutex_unlock(&variable_mutex);
-
-    // Apply calibration offset
-    float calibrated_value = data->value - dev_data->calibration_offsets[data->dir];
-    
-
-    // Apply smoothing
-    static float smooth_values[DIRECTION_COUNT] = {0};
-    smooth_values[data->dir] = smooth_value(smooth_values[data->dir], calibrated_value, smoothing_factor);
-    
-
-
-
-    // Apply scaling and exponential function
-    float scale = calculate_frequency_scale(movement_history);
-    float scaled_value = apply_exponential_scaling(smooth_values[data->dir] * scale, exponential_base);
-    
-    
-    // Apply non-linear scaling
-    scaled_value = apply_non_linear_scaling(scaled_value);
-    
-
-     // Limit the final value to prevent overflow, but allow for finer movements
-    float max_value = 1000.0f;
-    scaled_value = fminf(fabsf(scaled_value), max_value) * (scaled_value >= 0 ? 1 : -1);
-
-    // Accumulate movement
-    switch (data->dir) {
-        case DIR_LEFT:
-            atomic_add(&dev_data->accumulated_x, (int32_t)(-scaled_value * 100));
-            break;
-        case DIR_RIGHT:
-            atomic_add(&dev_data->accumulated_x, (int32_t)(scaled_value * 100));
-            break;
-        case DIR_UP:
-            atomic_add(&dev_data->accumulated_y, (int32_t)(-scaled_value * 100));
-            break;
-        case DIR_DOWN:
-            atomic_add(&dev_data->accumulated_y, (int32_t)(scaled_value * 100));
-            break;
-    }
-
-    k_sem_give(&dev_data->movement_sem);
-
-    
-}
-
-static void report_movement(struct k_work *work)
-{
-    struct pim447_data *data = CONTAINER_OF(work, struct pim447_data, work.work);
-    int32_t x_movement, y_movement;
-
-    k_sem_take(&data->movement_sem, K_FOREVER);
-
-    // Atomically get and reset accumulated movement
-    x_movement = atomic_set(&data->accumulated_x, 0);
-    y_movement = atomic_set(&data->accumulated_y, 0);
-
-    
-
-    // Scale down the movement to reasonable values
-    int scaled_x = x_movement / 100;
-    int scaled_y = y_movement / 100;
-
-    // Report movement if it's non-zero
-    if (scaled_x != 0 || scaled_y != 0) {
-        int err;
-        err = input_report_rel(data->dev, INPUT_REL_X, scaled_x, false, K_NO_WAIT);
-        if (err) {
-            LOG_ERR("Failed to report X movement: %d", err);
-        } else {
-            
-        }
-        err = input_report_rel(data->dev, INPUT_REL_Y, scaled_y, true, K_NO_WAIT);
-        if (err) {
-            LOG_ERR("Failed to report Y movement: %d", err);
-        } else {
-            
-        }
-        
-    } else {
-        
-    }
-
-    // Schedule next report
-    k_work_schedule(&data->work, K_MSEC(10));
-}
-
-static void pim447_work_handler(struct k_work *work)
-{
-    
-
-    struct pim447_data *data = CONTAINER_OF(work, struct pim447_data, work.work);
+/* Work handler function */
+static void pim447_work_handler(struct k_work *work) {
+    struct pim447_data *data = CONTAINER_OF(work, struct pim447_data, work);
     const struct pim447_config *config = data->dev->config;
     const struct device *dev = data->dev;
 
     uint8_t buf[5];
     int ret;
 
-    
+    LOG_INF("Work handler executed");
 
     /* Read movement data and switch state */
     ret = i2c_burst_read_dt(&config->i2c, REG_LEFT, buf, 5);
@@ -268,36 +87,67 @@ static void pim447_work_handler(struct k_work *work)
 
     LOG_INF("Raw data: LEFT=%d, RIGHT=%d, UP=%d, DOWN=%d, SWITCH=0x%02X",
             buf[0], buf[1], buf[2], buf[3], buf[4]);
-    
-    int8_t delta_x = (int8_t)buf[1] - (int8_t)buf[0];  // RIGHT - LEFT
-    int8_t delta_y = (int8_t)buf[3] - (int8_t)buf[2];  // DOWN - UP
 
-    // Process each direction independently
-    uint32_t current_time = k_uptime_get_32();
-    for (int i = 0; i < DIRECTION_COUNT; i++) {
-        data->direction_data[i].value = buf[i];
-        data->direction_data[i].timestamp = current_time;
-        data->direction_data[i].dev = dev;
-        k_work_submit_to_queue(data->trackball_workq, &data->direction_works[i]);
+
+    // Calculate movement deltas
+    int16_t delta_x_raw = (int16_t)buf[1] - (int16_t)buf[0]; // Right - Left
+    int16_t delta_y_raw = (int16_t)buf[3] - (int16_t)buf[2]; // Down - Up
+
+    LOG_INF("Calculated data: delta_x_raw=%d, delta_y_raw=%d", delta_x_raw, delta_y_raw);
+
+    // Calculate the speed (movement magnitude)
+    int16_t speed = sqrt(delta_x_raw * delta_x_raw + delta_y_raw * delta_y_raw);
+
+    LOG_INF("Speed: %d", speed);
+
+     /* Lock the mutex before accessing shared variables */
+    k_mutex_lock(&variable_mutex, K_FOREVER);
+
+    /* Clamp speed to [speed_min, speed_max] */
+    if (speed < speed_min) {
+        speed = speed_min;
+    }
+    if (speed > speed_max) {
+        speed = speed_max;
     }
 
-   static int64_t last_button_change = 0;
-    int64_t now = k_uptime_get();
+    /* Calculate the scaling factor based on speed */
+    int16_t scale_divisor = scale_divisor_max - ((speed - speed_min) /
+        (speed_max - speed_min)) * (scale_divisor_max - scale_divisor_min);
+
+    /* Ensure scale_divisor is within valid range */
+    if (scale_divisor < scale_divisor_min) {
+        scale_divisor = scale_divisor_min;
+    }
+    if (scale_divisor > scale_divisor_max) {
+        scale_divisor = scale_divisor_max;
+    }
+
+    k_mutex_unlock(&variable_mutex);
+
+    // Apply scaling
+    int16_t delta_x_scaled = delta_x_raw / scale_divisor;
+    int16_t delta_y_scaled = delta_y_raw / scale_divisor;
+
+    // Convert to integers for reporting
+    int16_t delta_x = (int16_t)delta_x_scaled;
+    int16_t delta_y = (int16_t)delta_y_scaled;
+
+
+
 
     bool sw_pressed = (buf[4] & MSK_SWITCH_STATE) != 0;
 
-    // Only report switch state change if debounce time has passed
-    if (sw_pressed != data->sw_pressed_prev && 
-        (now - last_button_change) > (int64_t)BUTTON_DEBOUNCE_TIME_MS) {
-        int err = input_report_key(dev, INPUT_BTN_0, sw_pressed, true, K_FOREVER);
-        if (err) {
-            LOG_ERR("Failed to report switch state: %d", err);
-        } else {
-            LOG_DBG("Reported switch state: %d", sw_pressed);
-        }
-        data->sw_pressed_prev = sw_pressed;
-        last_button_change = now;
+    int err;
+
+
+    err = input_report_key(dev, INPUT_BTN_0, sw_pressed ? 1 : 0, true, K_FOREVER);
+    if (err) {
+        LOG_ERR("Failed to report switch state: %d", err);
+    } else {
+        LOG_DBG("Reported switch state: %d", sw_pressed);
     }
+
 
     /* Clear movement registers by writing zeros */
     uint8_t zero = 0;
@@ -317,6 +167,23 @@ static void pim447_work_handler(struct k_work *work)
         data->sw_pressed_prev = sw_pressed;
     }
 
+
+    /* Report relative X movement */
+    err = input_report_rel(dev, INPUT_REL_X, delta_x, true, K_NO_WAIT);
+    if (err) {
+        LOG_ERR("Failed to report delta_x: %d", err);
+    } else {
+        LOG_DBG("Reported delta_x: %d", delta_x);
+    }
+
+    /* Report relative Y movement */
+    err = input_report_rel(dev, INPUT_REL_Y, delta_y, true, K_NO_WAIT);
+    if (err) {
+        LOG_ERR("Failed to report delta_y: %d", err);
+    } else {
+        LOG_DBG("Reported delta_y: %d", delta_y);
+    }
+
     /* Read and clear the INT status register if necessary */
     uint8_t int_status;
     ret = i2c_reg_read_byte_dt(&config->i2c, REG_INT, &int_status);
@@ -325,7 +192,7 @@ static void pim447_work_handler(struct k_work *work)
         return;
     }
 
-    
+    LOG_INF("INT status before clearing: 0x%02X", int_status);
 
     if (int_status & MSK_INT_TRIGGERED) {
         int_status &= ~MSK_INT_TRIGGERED;
@@ -334,55 +201,21 @@ static void pim447_work_handler(struct k_work *work)
             LOG_ERR("Failed to clear INT status register");
             return;
         }
-        
+        LOG_INF("INT status after clearing: 0x%02X", int_status);
     }
 }
 
-static void calibrate_trackball(struct pim447_data *data) {
-    const struct pim447_config *config = data->dev->config;
-    uint8_t buf[4];
-    int ret;
-    float sum[DIRECTION_COUNT] = {0};
-
-    
-
-    for (int i = 0; i < CALIBRATION_SAMPLES; i++) {
-        ret = i2c_burst_read_dt(&config->i2c, REG_LEFT, buf, 4);
-        if (ret) {
-            LOG_ERR("Failed to read movement data during calibration");
-            return;
-        }
-
-        for (int j = 0; j < DIRECTION_COUNT; j++) {
-            sum[j] += buf[j];
-        }
-
-        k_msleep(10);  // Wait a bit between samples
-    }
-
-    for (int i = 0; i < DIRECTION_COUNT; i++) {
-        data->calibration_offsets[i] = sum[i] / CALIBRATION_SAMPLES;
-        
-    }
-
-    
-}
-
-static void pim447_gpio_callback(const struct device *port, struct gpio_callback *cb, gpio_port_pins_t pins)
-{
+/* GPIO callback function */
+static void pim447_gpio_callback(const struct device *port, struct gpio_callback *cb, gpio_port_pins_t pins) {
     struct pim447_data *data = CONTAINER_OF(cb, struct pim447_data, int_gpio_cb);
     const struct pim447_config *config = data->dev->config;
 
-    
+    LOG_INF("GPIO callback triggered on pin %d", config->int_gpio.pin);
 
-    int ret = k_work_submit(&data->work.work);
-    if (ret < 0) {
-        LOG_ERR("Failed to submit work item: %d", ret);
-    } else {
-        
-    }
+    k_work_submit(&data->work);
 }
 
+/* Function to enable or disable interrupt output */
 static int pim447_enable_interrupt(const struct pim447_config *config, bool enable) {
     uint8_t int_reg;
     int ret;
@@ -394,7 +227,7 @@ static int pim447_enable_interrupt(const struct pim447_config *config, bool enab
         return ret;
     }
 
-    
+    LOG_INF("INT register before changing: 0x%02X", int_reg);
 
     /* Update the MSK_INT_OUT_EN bit */
     if (enable) {
@@ -410,17 +243,18 @@ static int pim447_enable_interrupt(const struct pim447_config *config, bool enab
         return ret;
     }
 
-    
+    LOG_INF("INT register after changing: 0x%02X", int_reg);
 
     return 0;
 }
 
+/* Enable function */
 static int pim447_enable(const struct device *dev) {
     const struct pim447_config *config = dev->config;
     struct pim447_data *data = dev->data;
     int ret;
 
-    
+    LOG_INF("pim447_enable called");
 
     /* Check if the interrupt GPIO device is ready */
     if (!device_is_ready(config->int_gpio.port)) {
@@ -446,7 +280,7 @@ static int pim447_enable(const struct device *dev) {
     }
 
     /* Configure the GPIO interrupt for falling edge (active low) */
-    ret = gpio_pin_interrupt_configure_dt(&config->int_gpio, GPIO_INT_EDGE_BOTH);
+    ret = gpio_pin_interrupt_configure_dt(&config->int_gpio, GPIO_INT_EDGE_FALLING);
     if (ret) {
         LOG_ERR("Failed to configure GPIO interrupt");
         return ret;
@@ -475,17 +309,18 @@ static int pim447_enable(const struct device *dev) {
         return ret;
     }
 
-    
+    LOG_INF("pim447 enabled");
 
     return 0;
 }
 
+/* Disable function */
 static int pim447_disable(const struct device *dev) {
     const struct pim447_config *config = dev->config;
     struct pim447_data *data = dev->data;
     int ret;
 
-    
+    LOG_INF("pim447_disable called");
 
     /* Disable interrupt output on the trackball */
     ret = pim447_enable_interrupt(config, false);
@@ -504,11 +339,12 @@ static int pim447_disable(const struct device *dev) {
     /* Remove the GPIO callback */
     gpio_remove_callback(config->int_gpio.port, &data->int_gpio_cb);
 
-    
+    LOG_INF("pim447 disabled");
 
     return 0;
 }
 
+/* Device initialization function */
 static int pim447_init(const struct device *dev) {
     const struct pim447_config *config = dev->config;
     struct pim447_data *data = dev->data;
@@ -538,42 +374,19 @@ static int pim447_init(const struct device *dev) {
     }
 
     uint16_t chip_id = ((uint16_t)chip_id_h << 8) | chip_id_l;
-    
+    LOG_INF("PIM447 chip ID: 0x%04X", chip_id);
 
     /* Enable the Trackball */
     pim447_enable(dev);
 
-    /* Initialize the work queue */
-    k_work_queue_start(&trackball_work_q, trackball_stack_area,
-                       K_THREAD_STACK_SIZEOF(trackball_stack_area),
-                       CONFIG_SYSTEM_WORKQUEUE_PRIORITY, NULL);
-    data->trackball_workq = &trackball_work_q;
-    
-
     /* Initialize the work handler */
-    k_work_init_delayable(&data->work, pim447_work_handler);
-    
+    k_work_init(&data->work, pim447_work_handler);
 
-    /* Initialize direction-specific work items */
-    for (int i = 0; i < DIRECTION_COUNT; i++) {
-        k_work_init(&data->direction_works[i], process_direction);
-        data->direction_data[i].dir = (enum direction)i;
-    }
-
-    /* Initialize movement semaphore */
-    k_sem_init(&data->movement_sem, 0, 1);
-
-    /* Perform initial calibration */
-    calibrate_trackball(data);
-
-    /* Schedule first movement report */
-    k_work_schedule_for_queue(data->trackball_workq, &data->work, K_MSEC(10));
-    
-
-    
+    LOG_INF("PIM447 driver initialized");
 
     return 0;
 }
+
 
 /* Device configuration */
 static const struct pim447_config pim447_config = {
@@ -584,6 +397,6 @@ static const struct pim447_config pim447_config = {
 /* Device data */
 static struct pim447_data pim447_data;
 
-/* Device initialization macro */
-DEVICE_DT_INST_DEFINE(0, pim447_init, NULL, &pim447_data, &pim447_config,
-                      POST_KERNEL, CONFIG_INPUT_INIT_PRIORITY, NULL);
+    /* Device initialization macro */
+    DEVICE_DT_INST_DEFINE(0, pim447_init, NULL, &pim447_data, &pim447_config,
+                        POST_KERNEL, CONFIG_INPUT_INIT_PRIORITY, NULL);
