@@ -216,10 +216,6 @@ static void process_direction(struct k_work *work)
             break;
     }
 
-    
-            (long)atomic_get(&dev_data->accumulated_x),
-            (long)atomic_get(&dev_data->accumulated_y));
-
     k_sem_give(&dev_data->movement_sem);
 
     
@@ -286,7 +282,7 @@ static void pim447_work_handler(struct k_work *work)
         return;
     }
 
-    
+    LOG_INF("Raw data: LEFT=%d, RIGHT=%d, UP=%d, DOWN=%d, SWITCH=0x%02X",
             buf[0], buf[1], buf[2], buf[3], buf[4]);
     
     int8_t delta_x = (int8_t)buf[1] - (int8_t)buf[0];  // RIGHT - LEFT
@@ -332,7 +328,7 @@ static void pim447_work_handler(struct k_work *work)
 
     /* Log the movement data */
     if (delta_x || delta_y || sw_pressed != data->sw_pressed_prev) {
-        
+        LOG_INF("Trackball moved: delta_x=%d, delta_y=%d, sw_pressed=%d",
                 delta_x, delta_y, sw_pressed);
         data->sw_pressed_prev = sw_pressed;
     }
