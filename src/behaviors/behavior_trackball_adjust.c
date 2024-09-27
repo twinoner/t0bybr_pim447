@@ -62,7 +62,7 @@ static int behavior_trackball_adjust_binding_pressed(struct zmk_behavior_binding
 {
     uint32_t action = binding->param1;  // Access the action parameter
 
-    k_mutex_lock(&variable_mutex, K_FOREVER);
+    // k_mutex_lock(&variable_mutex, K_FOREVER);
 
     // switch (action) {
     //     case TB_INC_BASE_SCALE:
@@ -149,7 +149,7 @@ static int behavior_trackball_adjust_binding_pressed(struct zmk_behavior_binding
     //         break;
     // }
 
-    k_mutex_unlock(&variable_mutex);
+    // k_mutex_unlock(&variable_mutex);
 
     return 0;
 }
