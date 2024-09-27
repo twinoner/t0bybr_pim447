@@ -156,6 +156,17 @@ static void interpolate_movement(float start_x, float start_y, float end_x, floa
     }
 }
 
+static float apply_non_linear_scaling(float value) {
+    float abs_value = fabsf(value);
+    float sign = value >= 0 ? 1.0f : -1.0f;
+    
+    if (abs_value < 10) {
+        return sign * powf(abs_value / 10, 1.5f) * 10;
+    } else {
+        return value;
+    }
+}
+
 static float calculate_frequency_scale(const struct movement_data *history) {
     if (history[0].timestamp == history[MOVEMENT_HISTORY_SIZE - 1].timestamp) {
         return BASE_SCALE_FACTOR;  // Avoid division by zero
@@ -187,6 +198,10 @@ static void process_direction(struct k_work *work) {
     // Apply scaling and exponential function
     float scale = calculate_frequency_scale(movement_history);
     float scaled_value = apply_exponential_scaling(smooth_values[data->dir] * scale, exponential_base);
+
+    // Apply non-linear scaling
+    scaled_value = apply_non_linear_scaling(scaled_value);
+
 
     // Accumulate movement
     switch (data->dir) {
