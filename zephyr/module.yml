@@ -1,7 +1,7 @@
 # Delete all unused properties.
 
 # Give your module a name
-name: pim447
+name: pimoroni_pim447
 build:
   # Folder containing a "CMakeLists.txt" (. = root)
   cmake: .

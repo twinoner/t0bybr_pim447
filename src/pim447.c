@@ -329,7 +329,6 @@ static int pimoroni_pim447_init(const struct device *dev) {
     return 0;
 }
 
-
 /* Device configuration */
 static const struct pimoroni_pim447_config pimoroni_pim447_config = {
     .i2c = I2C_DT_SPEC_INST_GET(0),
@@ -339,6 +338,6 @@ static const struct pimoroni_pim447_config pimoroni_pim447_config = {
 /* Device data */
 static struct pimoroni_pim447_data pimoroni_pim447_data;
 
-    /* Device initialization macro */
-    DEVICE_DT_INST_DEFINE(0, pimoroni_pim447_init, NULL, &pimoroni_pim447_data, &pimoroni_pim447_config,
-                        POST_KERNEL, CONFIG_INPUT_INIT_PRIORITY, NULL);
+/* Device initialization macro */
+DEVICE_DT_INST_DEFINE(0, pimoroni_pim447_init, NULL, &pimoroni_pim447_data, &pimoroni_pim447_config,
+                    POST_KERNEL, CONFIG_INPUT_INIT_PRIORITY, NULL);
