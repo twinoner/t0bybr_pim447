@@ -37,15 +37,6 @@
 #define MSK_INT_TRIGGERED   0b00000001
 #define MSK_INT_OUT_EN      0b00000010
 
-/* Exposed variables */
-volatile float speed_min = 1.0f;
-volatile float speed_max = 5.0f;
-volatile float scale_divisor_min = 1.0f;
-volatile float scale_divisor_max = 2.0f;
-
-/* Mutex for thread safety */
-K_MUTEX_DEFINE(variable_mutex);
-
 LOG_MODULE_REGISTER(pim447, LOG_LEVEL_DBG);
 
 /* Device configuration structure */
@@ -89,64 +80,21 @@ static void pim447_work_handler(struct k_work *work) {
             buf[0], buf[1], buf[2], buf[3], buf[4]);
 
 
-    // Calculate movement deltas
-    int16_t delta_x_raw = (int16_t)buf[1] - (int16_t)buf[0]; // Right - Left
-    int16_t delta_y_raw = (int16_t)buf[3] - (int16_t)buf[2]; // Down - Up
-
-    LOG_INF("Calculated data: delta_x_raw=%d, delta_y_raw=%d", delta_x_raw, delta_y_raw);
-
-    // Calculate the speed (movement magnitude)
-    int16_t speed = sqrt(delta_x_raw * delta_x_raw + delta_y_raw * delta_y_raw);
-
-    LOG_INF("Speed: %d", speed);
-
-     /* Lock the mutex before accessing shared variables */
-    k_mutex_lock(&variable_mutex, K_FOREVER);
-
-    /* Clamp speed to [speed_min, speed_max] */
-    if (speed < speed_min) {
-        speed = speed_min;
-    }
-    if (speed > speed_max) {
-        speed = speed_max;
-    }
-
-    /* Calculate the scaling factor based on speed */
-    int16_t scale_divisor = scale_divisor_max - ((speed - speed_min) /
-        (speed_max - speed_min)) * (scale_divisor_max - scale_divisor_min);
-
-    /* Ensure scale_divisor is within valid range */
-    if (scale_divisor < scale_divisor_min) {
-        scale_divisor = scale_divisor_min;
-    }
-    if (scale_divisor > scale_divisor_max) {
-        scale_divisor = scale_divisor_max;
-    }
-
-    k_mutex_unlock(&variable_mutex);
-
-    // Apply scaling
-    int16_t delta_x_scaled = delta_x_raw / scale_divisor;
-    int16_t delta_y_scaled = delta_y_raw / scale_divisor;
-
-    // Convert to integers for reporting
-    int16_t delta_x = (int16_t)delta_x_scaled;
-    int16_t delta_y = (int16_t)delta_y_scaled;
 
 
 
 
     bool sw_pressed = (buf[4] & MSK_SWITCH_STATE) != 0;
 
-    int err;
+    // int err;
 
 
-    err = input_report_key(dev, INPUT_BTN_0, sw_pressed ? 1 : 0, true, K_FOREVER);
-    if (err) {
-        LOG_ERR("Failed to report switch state: %d", err);
-    } else {
-        LOG_DBG("Reported switch state: %d", sw_pressed);
-    }
+    // err = input_report_key(dev, INPUT_BTN_0, sw_pressed ? 1 : 0, true, K_FOREVER);
+    // if (err) {
+    //     LOG_ERR("Failed to report switch state: %d", err);
+    // } else {
+    //     LOG_DBG("Reported switch state: %d", sw_pressed);
+    // }
 
 
     /* Clear movement registers by writing zeros */
@@ -160,29 +108,23 @@ static void pim447_work_handler(struct k_work *work) {
         LOG_ERR("Failed to clear movement registers");
     }
 
-    /* Log the movement data */
-    if (delta_x || delta_y || sw_pressed != data->sw_pressed_prev) {
-        LOG_INF("Trackball moved: delta_x=%d, delta_y=%d, sw_pressed=%d",
-                delta_x, delta_y, sw_pressed);
-        data->sw_pressed_prev = sw_pressed;
-    }
 
 
-    /* Report relative X movement */
-    err = input_report_rel(dev, INPUT_REL_X, delta_x, true, K_NO_WAIT);
-    if (err) {
-        LOG_ERR("Failed to report delta_x: %d", err);
-    } else {
-        LOG_DBG("Reported delta_x: %d", delta_x);
-    }
+    // /* Report relative X movement */
+    // err = input_report_rel(dev, INPUT_REL_X, delta_x, true, K_NO_WAIT);
+    // if (err) {
+    //     LOG_ERR("Failed to report delta_x: %d", err);
+    // } else {
+    //     LOG_DBG("Reported delta_x: %d", delta_x);
+    // }
 
-    /* Report relative Y movement */
-    err = input_report_rel(dev, INPUT_REL_Y, delta_y, true, K_NO_WAIT);
-    if (err) {
-        LOG_ERR("Failed to report delta_y: %d", err);
-    } else {
-        LOG_DBG("Reported delta_y: %d", delta_y);
-    }
+    // /* Report relative Y movement */
+    // err = input_report_rel(dev, INPUT_REL_Y, delta_y, true, K_NO_WAIT);
+    // if (err) {
+    //     LOG_ERR("Failed to report delta_y: %d", err);
+    // } else {
+    //     LOG_DBG("Reported delta_y: %d", delta_y);
+    // }
 
     /* Read and clear the INT status register if necessary */
     uint8_t int_status;
