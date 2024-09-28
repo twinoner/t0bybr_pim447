@@ -1,11 +1,9 @@
 # 2024 t0bybr
 
 if PIM447
-  config ZMK_SENSOR_PIM447
+  config ZMK_INPUT_PIM447
     bool "PIM447 Trackball"
     # default y
-    #depends on ZMK_SENSORS && GPIO && I2C
-    # select ZMK_SENSORS
     # select GPIO
     # select I2C
     depends on I2C && GPIO
