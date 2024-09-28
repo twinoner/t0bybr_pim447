@@ -7,4 +7,6 @@ if ((NOT CONFIG_ZMK_SPLIT) OR CONFIG_ZMK_SPLIT_ROLE_CENTRAL)
   zephyr_include_directories(include)
   zephyr_library_sources_ifdef(CONFIG_PIMORONI_PIM447 src/pim447.c)
   zephyr_library_sources_ifdef(CONFIG_PIMORONI_PIM447_BEHAVIORS src/beahviors/pimoroni_pim447_behaviors.c)
+  set(DTC_OVERLAY_FILE "${APPLICATION_SOURCE_DIR}/dts/beahviors/pimoroni_pim447_behaviors.dtsi")
+
 endif()
