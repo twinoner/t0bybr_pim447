@@ -1,22 +1,20 @@
 # 2024 t0bybr
 
-if PIMORONI_PIM447
-  config ZMK_PIMORONI_PIM447
-    bool "Pimoroni PIM447 Trackball support"
-    depends on I2C && GPIO
-    help
-      Enable driver for Pimoroni  Trackball.
+config ZMK_PIMORONI_PIM447
+  bool "Pimoroni PIM447 Trackball support"
+  depends on I2C && GPIO
+  help
+    Enable driver for Pimoroni  Trackball.
 
-  config ZMK_PIMORONI_PIM447_ENABLE_INTERRUPT
-    bool "Enable PIM447 Trackball interrupt"
-    default y
-    select ZMK_PIMORONI_PIM447
-    help
-      Enable interrupts for Pimoroni PIM447 Trackball.
+config ZMK_PIMORONI_PIM447_ENABLE_INTERRUPT
+  bool "Enable PIM447 Trackball interrupt"
+  default y
+  select ZMK_PIMORONI_PIM447
+  help
+    Enable interrupts for Pimoroni PIM447 Trackball.
 
-  config ZMK_PIMORONI_PIM447_BEHAVIORS
-    bool "Enable Pimoroni PIM447 Trackball Actions behavior"
-    default y
-    select ZMK_BEHAVIORS
+config ZMK_PIMORONI_PIM447_BEHAVIORS
+  bool "Enable Pimoroni PIM447 Trackball Actions behavior"
+  default y
+  select ZMK_BEHAVIORS
 
-endif # PIMORONI_PIM447
