@@ -1,6 +1,6 @@
 /* pimoroni_pim447.c - Driver for Pimoroni PIM447 Trackball */
 
-#define DT_DRV_COMPAT pimoroni_pim447
+#define DT_DRV_COMPAT zmk_pimoroni_pim447
 
 #include <zephyr/device.h>
 #include <zephyr/input/input.h>
@@ -37,7 +37,7 @@
 #define MSK_INT_TRIGGERED   0b00000001
 #define MSK_INT_OUT_EN      0b00000010
 
-LOG_MODULE_REGISTER(pimoroni_pim447, LOG_LEVEL_DBG);
+LOG_MODULE_REGISTER(zmk_pimoroni_pim447, LOG_LEVEL_DBG);
 
 /* Device configuration structure */
 struct pimoroni_pim447_config {
