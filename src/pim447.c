@@ -292,6 +292,8 @@ static int pimoroni_pim447_init(const struct device *dev) {
     struct pimoroni_pim447_data *data = dev->data;
     int ret;
 
+    LOG_INF("PIM447 driver initializing");
+
     data->dev = dev;
     data->sw_pressed_prev = false;
 
