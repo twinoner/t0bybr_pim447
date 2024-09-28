@@ -1,17 +1,34 @@
 # 2024 t0bybr
 
-config ZMK_SENSOR_PIM447
+if PIM447
+  config ZMK_SENSOR_PIM447
     bool "PIM447 Trackball"
     # default y
     #depends on ZMK_SENSORS && GPIO && I2C
     # select ZMK_SENSORS
     # select GPIO
     # select I2C
-    depends on I2C
+    depends on I2C && GPIO
     help
       Enable driver for PIM447 Trackball.
 
-# if PIM447
+  config PIM447_TB_ACTIONS
+      bool "Enable PIM447 Trackball Actions behavior"
+      default y
+      select ZMK_BEHAVIORS
+
+  config ZMK_PIM447_TB_ACTIONS
+      bool
+      default y
+
+  config ZMK_PIM447_TB_ACTIONS_INCLUDE
+      string
+      default "tb_actions.dtsi"
+endif # PIM447
+
+
+
+
 
 # choice
 #     prompt "Trigger mode"

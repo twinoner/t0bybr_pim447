@@ -3,7 +3,7 @@
 
 description: Custom behavior to adjust trackball parameters via keypresses.
 
-compatible: "zmk,behavior-trackball-adjust"
+compatible: "zmk,behavior-tb-actions"
 
 include: one_param.yaml
 

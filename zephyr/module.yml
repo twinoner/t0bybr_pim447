@@ -10,3 +10,4 @@ build:
   settings:
     # Folder containing a "dts" folder (. = root)
     dts_root: .
+dts_file: tb_actions.dtsi

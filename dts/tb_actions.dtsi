@@ -1,0 +1,8 @@
+/ {
+    behaviors {
+        tb_actions: behavior_tb_actions {
+            compatible = "zmk,behavior-tb-actions";
+            #binding-cells = <1>;
+        };
+    };
+};
