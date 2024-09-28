@@ -3,7 +3,7 @@
 /* SPDX-License-Identifier: MIT */
 
 /* Define the driver compatibility */
-#define DT_DRV_COMPAT pim447_behaviors
+#define DT_DRV_COMPAT pimoroni_pim447_behaviors
 
 #include <zephyr/kernel.h>
 #include <drivers/behavior.h>
