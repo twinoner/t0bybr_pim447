@@ -6,6 +6,6 @@ if ((NOT CONFIG_ZMK_SPLIT) OR CONFIG_ZMK_SPLIT_ROLE_CENTRAL)
 
   zephyr_include_directories(include)
   zephyr_library_sources_ifdef(CONFIG_PIMORONI_PIM447 src/pim447.c)
-  zephyr_library_sources_ifdef(CONFIG_PIMORONI_PIM447_BEHAVIORS src/beahviors/pimoroni_pim447_behaviors.c)
+  target_sources_ifdef(CONFIG_PIMORONI_PIM447_BEHAVIORS app PRIVATE src/behaviors/pimoroni_pim447_behaviors.c)
 
 endif()
