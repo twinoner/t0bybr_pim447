@@ -1,8 +1,0 @@
-/ {
-    behaviors {
-        pim447: pim447_behaviors {
-            compatible = "pimoroni,pim447_behaviors";
-            #binding-cells = <1>;
-        };
-    };
-};

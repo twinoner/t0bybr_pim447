@@ -1,0 +1,8 @@
+/ {
+    behaviors {
+        /omit-if-no-ref/ pim447: pimoroni_pim447_behaviors {
+            compatible = "zmk,pimoroni_pim447_behaviors";
+            #binding-cells = <1>;
+        };
+    };
+};

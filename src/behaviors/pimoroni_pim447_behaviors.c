@@ -3,7 +3,7 @@
 /* SPDX-License-Identifier: MIT */
 
 /* Define the driver compatibility */
-#define DT_DRV_COMPAT pimoroni_pim447_behaviors
+#define DT_DRV_COMPAT zmk_pimoroni_pim447_behaviors
 
 #include <zephyr/kernel.h>
 #include <drivers/behavior.h>
@@ -17,7 +17,7 @@
 
 LOG_MODULE_DECLARE(zmk, CONFIG_ZMK_LOG_LEVEL);
 
-#include "dt-bindings/pim447_behaviors.h"
+#include "dt-bindings/pimoroni_pim447_behaviors.h"
 
 /* Extern variables */
 // extern volatile uint8_t FREQUENCY_THRESHOLD;
