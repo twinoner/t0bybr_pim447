@@ -3,7 +3,7 @@
 
 description: Custom behavior to adjust trackball parameters via keypresses.
 
-compatible: "zmk,behavior-tb-actions"
+compatible: "pimoroni,pim447_behaviors"
 
 include: one_param.yaml
 

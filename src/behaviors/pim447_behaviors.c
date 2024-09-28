@@ -1,7 +1,9 @@
-/* behavior_tb_actions.c */
+/* pim447_behaviors.c */
 
 /* SPDX-License-Identifier: MIT */
 
+/* Define the driver compatibility */
+#define DT_DRV_COMPAT pim447_behaviors
 
 #include <zephyr/kernel.h>
 #include <drivers/behavior.h>
@@ -15,7 +17,7 @@
 
 LOG_MODULE_DECLARE(zmk, CONFIG_ZMK_LOG_LEVEL);
 
-#include "dt-bindings/tb_actions.h"
+#include "dt-bindings/pim447_behaviors.h"
 
 /* Extern variables */
 // extern volatile uint8_t FREQUENCY_THRESHOLD;
@@ -44,20 +46,18 @@ LOG_MODULE_DECLARE(zmk, CONFIG_ZMK_LOG_LEVEL);
 #define EXPONENTIAL_BASE_MIN 1.1f
 #define EXPONENTIAL_BASE_MAX 2.0f
 
-/* Define the driver compatibility */
-#define DT_DRV_COMPAT zmk_behavior_tb_actions
 
 /* Configuration and data structures */
-struct behavior_tb_actions_config {
+struct behavior_pim447_config {
     // Add any configuration parameters if needed
 };
 
-struct behavior_tb_actions_data {
+struct behavior_pim447_data {
     // Add any runtime data if needed
 };
 
 /* Behavior function */
-static int behavior_tb_actions_binding_pressed(struct zmk_behavior_binding *binding,
+static int behavior_pim447_binding_pressed(struct zmk_behavior_binding *binding,
                                                      struct zmk_behavior_binding_event event)
 {
     // uint32_t action = binding->param1;  // Access the action parameter
@@ -155,7 +155,7 @@ static int behavior_tb_actions_binding_pressed(struct zmk_behavior_binding *bind
 }
 
 /* Optionally implement the released function if needed */
-static int behavior_tb_actions_binding_released(struct zmk_behavior_binding *binding,
+static int behavior_pim447_binding_released(struct zmk_behavior_binding *binding,
                                                       struct zmk_behavior_binding_event event)
 {
     // If your behavior needs to handle key releases, implement this function
@@ -163,13 +163,13 @@ static int behavior_tb_actions_binding_released(struct zmk_behavior_binding *bin
 }
 
 /* Behavior driver API */
-static const struct behavior_driver_api behavior_tb_actions_driver_api = {
-    .binding_pressed = behavior_tb_actions_binding_pressed,
+static const struct behavior_driver_api behavior_pim447_driver_api = {
+    .binding_pressed = behavior_pim447_binding_pressed,
     .binding_released = NULL,  // Set to NULL if not used
 };
 
 /* Initialization function (if needed) */
-static int behavior_tb_actions_init(const struct device *dev)
+static int behavior_pim447_init(const struct device *dev)
 {
 
     LOG_INF("Trackball adjustment behavior initialized");
@@ -179,19 +179,19 @@ static int behavior_tb_actions_init(const struct device *dev)
 }
 
 /* Device instance definition */
-static struct behavior_tb_actions_data behavior_tb_actions_data;
+static struct behavior_pim447_data behavior_pim447_data;
 
-static const struct behavior_tb_actions_config behavior_tb_actions_config = {
+static const struct behavior_pim447_config behavior_pim447_config = {
     // Initialize configuration if needed
 };
 
 /* Register the behavior using BEHAVIOR_DT_INST_DEFINE */
 BEHAVIOR_DT_INST_DEFINE(0,                                     // Instance number
-                        behavior_tb_actions_init,        // Initialization function
+                        behavior_pim447_init,        // Initialization function
                         NULL,                                  // PM control function
-                        &behavior_tb_actions_data,       // Data pointer
-                        &behavior_tb_actions_config,     // Configuration pointer
+                        &behavior_pim447_data,       // Data pointer
+                        &behavior_pim447_config,     // Configuration pointer
                         POST_KERNEL,                           // Initialization level
                         CONFIG_KERNEL_INIT_PRIORITY_DEFAULT,   // Initialization priority
-                        &behavior_tb_actions_driver_api  // Driver API pointer
+                        &behavior_pim447_driver_api  // Driver API pointer
 );

@@ -11,7 +11,7 @@ properties:
 
   int-gpios:
     type: phandle-array
-    required: true
+    required: false
     description: Interrupt pin
 
   led-red-gpios:
