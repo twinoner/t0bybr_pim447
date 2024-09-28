@@ -1,6 +1,6 @@
 /* pimoroni_pim447.c - Driver for Pimoroni PIM447 Trackball */
 
-#define DT_DRV_COMPAT pimoroni_pim447
+#define DT_DRV_COMPAT zmk_pimoroni_pim447
 
 #include <zephyr/device.h>
 #include <zephyr/input/input.h>
@@ -9,6 +9,8 @@
 #include <zephyr/kernel.h>
 #include <zephyr/logging/log.h>
 #include <math.h>
+
+#include <pimoroni_pim447.h>
 
 
 /* Register Addresses */

@@ -1,6 +1,6 @@
 description: Pimoroni Trackball
 
-compatible: "pimoroni,pim447"
+compatible: "zmk,pimoroni-pim447"
 
 include: i2c-device.yaml
 
