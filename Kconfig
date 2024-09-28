@@ -19,7 +19,4 @@ if PIM447
     default y
     select ZMK_BEHAVIORS
 
-  config PIMORONI_PIM447_BEHAVIORS_INCLUDE
-      string
-      default "dts/pim447_behaviors.dtsi"
 endif # PIM447
