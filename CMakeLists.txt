@@ -8,7 +8,7 @@ if(CONFIG_PIMORONI_PIM447)
     if(CONFIG_PIMORONI_PIM447_BEHAVIORS)
       # Include the behaviors subdirectory
       zephyr_library_sources(
-        src/behaviors/behavior_tb_pim447.c
+        src/behaviors/pim447_behaviors.c
       )
     endif()
 
