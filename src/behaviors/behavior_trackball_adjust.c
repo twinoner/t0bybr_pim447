@@ -60,7 +60,7 @@ struct behavior_trackball_adjust_data {
 static int behavior_trackball_adjust_binding_pressed(struct zmk_behavior_binding *binding,
                                                      struct zmk_behavior_binding_event event)
 {
-    uint32_t action = binding->param1;  // Access the action parameter
+    // uint32_t action = binding->param1;  // Access the action parameter
 
     // k_mutex_lock(&variable_mutex, K_FOREVER);
 
