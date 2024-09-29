@@ -19,8 +19,6 @@ void pimoroni_pim447_led_init(const struct device *dev);
 /* Function prototypes */
 int pimoroni_pim447_set_led(const struct device *dev, pim447_led_t led, uint8_t brightness);
 int pimoroni_pim447_set_leds(const struct device *dev, uint8_t red, uint8_t green, uint8_t blue, uint8_t white);
-void pimoroni_pim447_start_led_animation(const struct device *dev);
-void pimoroni_pim447_stop_led_animation(const struct device *dev);
 
 /* You may also need to declare any shared data structures or extern variables here */
 

@@ -140,12 +140,5 @@ int pimoroni_pim447_set_leds(const struct device *dev, uint8_t red, uint8_t gree
 
 void pimoroni_pim447_led_init(const struct device *dev) {
     struct pimoroni_pim447_data *data = dev->data;
-
-    /* Initialize the LED animation work handler */
-    k_work_init_delayable(&data->led_work, pimoroni_pim447_led_work_handler);
-    data->hue = 0.0f;
-    data->led_animation_running = false;
-
-    /* Optionally start the LED animation */
-    pimoroni_pim447_start_led_animation(dev);
+    
 }
