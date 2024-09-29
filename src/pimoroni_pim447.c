@@ -287,7 +287,7 @@ static int pimoroni_pim447_init(const struct device *dev) {
     data->sw_pressed_prev = false;
 
     /* Check if the I2C device is ready */
-    if (!device_is_ready(config->i2c.bus)) {
+    if (!device_is_ready(pimoroni_pim447_i2c)) {
         LOG_ERR("I2C bus device is not ready");
         return -ENODEV;
     }
