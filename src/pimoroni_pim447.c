@@ -78,7 +78,7 @@ static void pimoroni_pim447_periodic_work_handler(struct k_work *work) {
 
     /* Report relative X movement */
     if (delta_x != 0) {
-        err = input_report_rel(dev, INPUT_REL_X, delta_x, false, K_NO_WAIT);
+        err = input_report_rel(dev, INPUT_REL_X, delta_x, true, K_NO_WAIT);
         if (err) {
             LOG_ERR("Failed to report delta_x: %d", err);
         } else {
