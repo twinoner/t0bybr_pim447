@@ -178,6 +178,13 @@ static int pimoroni_pim447_enable(const struct device *dev) {
         return ret;
     }
 
+    /* Configure the GPIO interrupt for falling edge (active low) */
+    ret = gpio_pin_interrupt_configure_dt(&config->int_gpio, GPIO_INT_EDGE_TO_INACTIVE);
+    if (ret) {
+        LOG_ERR("Failed to configure GPIO interrupt");
+        return ret;
+    }
+
     /* Initialize the GPIO callback */
     gpio_init_callback(&data->int_gpio_cb, pimoroni_pim447_gpio_callback, BIT(config->int_gpio.pin));
 
@@ -190,27 +197,20 @@ static int pimoroni_pim447_enable(const struct device *dev) {
         LOG_INF("GPIO callback added successfully");
     }
 
-    /* Configure the GPIO interrupt for falling edge (active low) */
-    ret = gpio_pin_interrupt_configure_dt(&config->int_gpio, GPIO_INT_EDGE_TO_INACTIVE);
-    if (ret) {
-        LOG_ERR("Failed to configure GPIO interrupt");
-        return ret;
-    }
+    // /* Clear any pending interrupts */
+    // uint8_t int_status;
+    // ret = i2c_reg_read_byte_dt(&config->i2c, REG_INT, &int_status);
+    // if (ret) {
+    //     LOG_ERR("Failed to read INT status register");
+    //     return ret;
+    // }
 
-    /* Clear any pending interrupts */
-    uint8_t int_status;
-    ret = i2c_reg_read_byte_dt(&config->i2c, REG_INT, &int_status);
-    if (ret) {
-        LOG_ERR("Failed to read INT status register");
-        return ret;
-    }
-
-    /* Clear the MSK_INT_TRIGGERED bit */
-    int_status &= ~MSK_INT_TRIGGERED;
-    ret = i2c_reg_write_byte_dt(&config->i2c, REG_INT, int_status);
-    if (ret) {
-        LOG_ERR("Failed to clear INT status register");
-        return ret;
+    // /* Clear the MSK_INT_TRIGGERED bit */
+    // int_status &= ~MSK_INT_TRIGGERED;
+    // ret = i2c_reg_write_byte_dt(&config->i2c, REG_INT, int_status);
+    // if (ret) {
+    //     LOG_ERR("Failed to clear INT status register");
+    //     return ret;
     }
     
     /* Enable interrupt output on the trackball */
