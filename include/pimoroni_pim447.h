@@ -44,14 +44,11 @@ struct pimoroni_pim447_data {
     const struct device *dev;
     struct gpio_callback int_gpio_cb;
     struct k_work_delayable periodic_work;
-    struct k_work_delayable led_work;
     struct k_work irq_work;     // Work item for handling interrupts
     struct k_mutex data_lock;   /* Existing mutex for data synchronization */
     struct k_mutex i2c_lock;    /* New mutex for I2C operations */
     int16_t delta_x;
     int16_t delta_y;
-    float hue;
-    bool led_animation_running;
     bool sw_pressed;
     bool sw_pressed_prev;
 };
