@@ -14,8 +14,7 @@ static const struct i2c_dt_spec pimoroni_pim447_i2c = I2C_DT_SPEC_GET(I2C1_NODE)
 
 
 struct pimoroni_pim447_config {
-    const struct device *i2c_bus;
-
+    const struct device *i2c;
     uint16_t i2c_addr;
     const struct gpio_dt_spec int_gpio;
 };
