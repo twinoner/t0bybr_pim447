@@ -93,6 +93,8 @@ static void pimoroni_pim447_work_handler(struct k_work *work) {
         return;
     }
 
+    LOG_INF("PIM447 work handler triggered");
+
     k_mutex_lock(&data->data_lock, K_NO_WAIT);
 
     /* Accumulate movement data */
