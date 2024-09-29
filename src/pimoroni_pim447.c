@@ -23,6 +23,34 @@ static void pimoroni_pim447_periodic_work_handler(struct k_work *work);
 static void pimoroni_pim447_gpio_callback(const struct device *port, struct gpio_callback *cb, gpio_port_pins_t pins);
 static int pimoroni_pim447_enable_interrupt(const struct pimoroni_pim447_config *config, bool enable);
 
+static int16_t convert_speed(int16_t value)
+{
+    bool negative = (value < 0);
+
+    if (negative) {
+        value = -value;
+    }
+
+    switch (value) {
+        case 0:  value = 0;   break;
+        case 1:  value = 1;   break;
+        case 2:  value = 4;   break;
+        case 3:  value = 8;   break;
+        case 4:  value = 18;  break;
+        case 5:  value = 32;  break;
+        case 6:  value = 50;  break;
+        case 7:  value = 72;  break;
+        case 8:  value = 98;  break;
+        default: value = 127; break;
+    }
+
+    if (negative) {
+        value = -value;
+    }
+
+    return value;
+}
+
 /* Periodic work handler function */
 static void pimoroni_pim447_periodic_work_handler(struct k_work *work) {
     struct k_work_delayable *dwork = k_work_delayable_from_work(work);
@@ -42,6 +70,9 @@ static void pimoroni_pim447_periodic_work_handler(struct k_work *work) {
 
     /* Get switch state */
     sw_pressed = data->sw_pressed;
+
+    delta_x = convert_speed(delta_x);
+    delta_y = convert_speed(delta_y);
 
     k_mutex_unlock(&data->data_lock);
 
