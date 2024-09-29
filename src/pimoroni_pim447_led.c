@@ -64,18 +64,8 @@ int pimoroni_pim447_set_led(const struct device *dev, pim447_led_t led, uint8_t 
     return 0;
 }
 
-
-/**
- * @brief Convert HSV color space to RGB.
- *
- * @param h Hue angle in degrees (0 to 360).
- * @param s Saturation (0 to 1).
- * @param v Value/Brightness (0 to 1).
- * @param r Pointer to store Red component (0 to 255).
- * @param g Pointer to store Green component (0 to 255).
- * @param b Pointer to store Blue component (0 to 255).
- */
-static void hsv_to_rgb(float h, float s, float v, uint8_t *r, uint8_t *g, uint8_t *b) {
+static void hsv_to_rgbw(float h, float s, float v, uint8_t *r, uint8_t *g, uint8_t *b, uint8_t *w) {
+    // Existing HSV to RGB conversion
     float c = v * s;
     float x = c * (1 - fabsf(fmodf(h / 60.0f, 2) - 1));
     float m = v - c;
@@ -107,9 +97,17 @@ static void hsv_to_rgb(float h, float s, float v, uint8_t *r, uint8_t *g, uint8_
         b_prime = x;
     }
 
-    *r = (uint8_t)((r_prime + m) * 255);
-    *g = (uint8_t)((g_prime + m) * 255);
-    *b = (uint8_t)((b_prime + m) * 255);
+    // Calculate white component
+    float w_prime = fminf(r_prime, fminf(g_prime, b_prime));
+    r_prime -= w_prime;
+    g_prime -= w_prime;
+    b_prime -= w_prime;
+
+    // Adjust to 0-255 scale
+    *r = (uint8_t)((r_prime + m + w_prime) * 255);
+    *g = (uint8_t)((g_prime + m + w_prime) * 255);
+    *b = (uint8_t)((b_prime + m + w_prime) * 255);
+    *w = (uint8_t)(w_prime * 255);
 }
 
 
@@ -124,7 +122,7 @@ static void pimoroni_pim447_led_work_handler(struct k_work *work) {
     struct k_work_delayable *dwork = k_work_delayable_from_work(work);
     struct pimoroni_pim447_data *data = CONTAINER_OF(dwork, struct pimoroni_pim447_data, led_work);
     const struct device *dev = data->dev;
-    uint8_t r, g, b;
+    uint8_t r, g, b, w;
     int ret;
 
     /* Increment hue */
@@ -134,10 +132,10 @@ static void pimoroni_pim447_led_work_handler(struct k_work *work) {
     }
 
     /* Convert HSV to RGB */
-    hsv_to_rgb(data->hue, 1.0f, 1.0f, &r, &g, &b);
+    hsv_to_rgbw(data->hue, 1.0f, 1.0f, &r, &g, &b, &w);
 
     /* Set the RGB LEDs */
-    ret = pimoroni_pim447_set_leds(dev, r, g, b, 0);
+    ret = pimoroni_pim447_set_leds(dev, r, g, b, w);
     if (ret) {
         LOG_ERR("Failed to set LEDs during animation: %d", ret);
     }

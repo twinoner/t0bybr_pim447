@@ -16,7 +16,7 @@
 
 LOG_MODULE_REGISTER(zmk_pimoroni_pim447, LOG_LEVEL_DBG);
 
-#define TRACKBALL_POLL_INTERVAL_MS 16 // Approximately 1/60 second
+#define TRACKBALL_POLL_INTERVAL_MS 20 // Approximately 1/50 second
 
 /* Forward declaration of functions */
 static void pimoroni_pim447_periodic_work_handler(struct k_work *work);
