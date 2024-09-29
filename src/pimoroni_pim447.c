@@ -32,6 +32,9 @@ static void pimoroni_pim447_periodic_work_handler(struct k_work *work) {
 
     k_mutex_lock(&data->data_lock, K_FOREVER);
 
+    LOG_INF("Periodic work handler executed");
+
+
     /* Copy and reset accumulated data */
     delta_x = data->delta_x;
     delta_y = data->delta_y;
@@ -305,6 +308,11 @@ static int pimoroni_pim447_init(const struct device *dev) {
     return 0;
 }
 
+static const struct input_driver_api pimoroni_pim447_driver_api = {
+    .enable = pimoroni_pim447_enable,
+    .disable = pimoroni_pim447_disable,
+};
+
 static const struct pimoroni_pim447_config pimoroni_pim447_config = {
     .i2c = I2C_DT_SPEC_INST_GET(0),
     .int_gpio = GPIO_DT_SPEC_INST_GET(0, int_gpios),
@@ -314,4 +322,4 @@ static struct pimoroni_pim447_data pimoroni_pim447_data;
 
 /* Device initialization macro */
 DEVICE_DT_INST_DEFINE(0, pimoroni_pim447_init, NULL, &pimoroni_pim447_data, &pimoroni_pim447_config,
-                      POST_KERNEL, CONFIG_INPUT_INIT_PRIORITY, NULL);
+                      POST_KERNEL, CONFIG_INPUT_INIT_PRIORITY, &pimoroni_pim447_driver_api);
