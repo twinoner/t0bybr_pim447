@@ -9,14 +9,13 @@ config ZMK_PIMORONI_PIM447
     Enable driver for Pimoroni  Trackball.
 
 if ZMK_PIMORONI_PIM447
-  config ZMK_PIMORONI_PIM447_ENABLE_INTERRUPT
-    bool "Enable PIM447 Trackball interrupt"
-    depends on ZMK_PIMORONI_PIM447
-    help
-      Enable interrupts for Pimoroni PIM447 Trackball.
 
   config ZMK_PIMORONI_PIM447_BEHAVIORS
     bool "Enable Pimoroni PIM447 Trackball Actions behavior"
+    depends on ZMK_PIMORONI_PIM447
     select ZMK_BEHAVIORS
+    default y
+    help
+      Enable Pimoroni PIM447 Trackball behaviors.
 
 endif # ZMK_PIMORONI_PIM447

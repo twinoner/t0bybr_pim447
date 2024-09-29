@@ -76,6 +76,26 @@ static void pimoroni_pim447_periodic_work_handler(struct k_work *work) {
             data->sw_pressed_prev = sw_pressed;
         }
     }
+    
+    /* Read and clear the INT status register if necessary */
+    uint8_t int_status;
+    ret = i2c_reg_read_byte_dt(&config->i2c, REG_INT, &int_status);
+    if (ret) {
+        LOG_ERR("Failed to read INT status register");
+        return;
+    }
+
+    LOG_INF("INT status before clearing: 0x%02X", int_status);
+
+    if (int_status & MSK_INT_TRIGGERED) {
+        int_status &= ~MSK_INT_TRIGGERED;
+        ret = i2c_reg_write_byte_dt(&config->i2c, REG_INT, int_status);
+        if (ret) {
+            LOG_ERR("Failed to clear INT status register");
+            return;
+        }
+        LOG_INF("INT status after clearing: 0x%02X", int_status);
+    }
 
     /* Reschedule the work */
     k_work_schedule(&data->periodic_work, K_MSEC(TRACKBALL_POLL_INTERVAL_MS)); // Schedule next execution
@@ -178,13 +198,6 @@ static int pimoroni_pim447_enable(const struct device *dev) {
         return ret;
     }
 
-    /* Configure the GPIO interrupt for falling edge (active low) */
-    ret = gpio_pin_interrupt_configure_dt(&config->int_gpio, GPIO_INT_EDGE_FALLING);
-    if (ret) {
-        LOG_ERR("Failed to configure GPIO interrupt");
-        return ret;
-    }
-
     /* Initialize the GPIO callback */
     gpio_init_callback(&data->int_gpio_cb, pimoroni_pim447_gpio_callback, BIT(config->int_gpio.pin));
 
@@ -195,6 +208,13 @@ static int pimoroni_pim447_enable(const struct device *dev) {
         return ret;
     } else {
         LOG_INF("GPIO callback added successfully");
+    }
+
+    /* Configure the GPIO interrupt for falling edge (active low) */
+    ret = gpio_pin_interrupt_configure_dt(&config->int_gpio, GPIO_INT_EDGE_FALLING);
+    if (ret) {
+        LOG_ERR("Failed to configure GPIO interrupt");
+        return ret;
     }
 
     /* Clear any pending interrupts */
@@ -255,7 +275,6 @@ static int pimoroni_pim447_disable(const struct device *dev) {
     return 0;
 }
 
-
 static int pimoroni_pim447_test_interrupt(const struct device *dev) {
     const struct pimoroni_pim447_config *config = dev->config;
 
@@ -263,11 +282,12 @@ static int pimoroni_pim447_test_interrupt(const struct device *dev) {
 
     // Briefly set the GPIO pin LOW to simulate an interrupt
     gpio_pin_set_dt(&config->int_gpio, 0);  
-    k_msleep(1); // Hold low for a short duration
+    k_msleep(10); // Hold low for a short duration
     gpio_pin_set_dt(&config->int_gpio, 1); 
 
     printk("Test interrupt triggered. Check logs for callback execution.\n");
 }
+
 /* Device initialization function */
 static int pimoroni_pim447_init(const struct device *dev) {
     const struct pimoroni_pim447_config *config = dev->config;
@@ -324,7 +344,8 @@ static int pimoroni_pim447_init(const struct device *dev) {
     /* Initialize the LED functionality */
     pimoroni_pim447_led_init(dev);
 
-pimoroni_pim447_test_interrupt(dev);
+    pimoroni_pim447_test_interrupt(dev);
+    
     LOG_INF("PIM447 driver initialized");
 
     return 0;

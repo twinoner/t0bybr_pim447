@@ -1,4 +1,4 @@
-description: Pimoroni Trackball
+description: Pimoroni PIM447 Trackball
 
 compatible: "zmk,pimoroni-pim447"
 
@@ -11,25 +11,5 @@ properties:
 
   int-gpios:
     type: phandle-array
-    required: false
+    required: true
     description: Interrupt pin
-
-  led-red-gpios:
-    type: phandle-array
-    required: false
-    description: GPIO for red LED control (optional)
-
-  led-green-gpios:
-    type: phandle-array
-    required: false
-    description: GPIO for green LED control (optional)
-
-  led-blue-gpios:
-    type: phandle-array
-    required: false
-    description: GPIO for blue LED control (optional)
-
-  led-white-gpios:
-    type: phandle-array
-    required: false
-    description: GPIO for white LED control (optional)
