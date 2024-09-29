@@ -71,8 +71,8 @@ static void pimoroni_pim447_periodic_work_handler(struct k_work *work) {
     /* Get switch state */
     sw_pressed = data->sw_pressed;
 
-    delta_x = convert_speed(delta_x);
-    delta_y = convert_speed(delta_y);
+    // delta_x = convert_speed(delta_x);
+    // delta_y = convert_speed(delta_y);
 
     k_mutex_unlock(&data->data_lock);
 
