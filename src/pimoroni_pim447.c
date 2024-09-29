@@ -171,15 +171,9 @@ static int pimoroni_pim447_enable(const struct device *dev) {
         return -ENODEV;
     }
 
-    /* Enable interrupt output on the trackball */
-    ret = pimoroni_pim447_enable_interrupt(config, true);
-    if (ret) {
-        LOG_ERR("Failed to enable interrupt output");
-        return ret;
-    }
 
     /* Configure the interrupt GPIO pin */
-    ret = gpio_pin_configure_dt(&config->int_gpio, GPIO_INPUT | GPIO_PULL_UP);
+    ret = gpio_pin_configure_dt(&config->int_gpio, GPIO_INPUT);
     if (ret) {
         LOG_ERR("Failed to configure interrupt GPIO");
         return ret;
@@ -219,6 +213,13 @@ static int pimoroni_pim447_enable(const struct device *dev) {
         LOG_ERR("Failed to clear INT status register");
         return ret;
     }
+    
+    /* Enable interrupt output on the trackball */
+    ret = pimoroni_pim447_enable_interrupt(config, true);
+    if (ret) {
+        LOG_ERR("Failed to enable interrupt output");
+        return ret;
+    }
 
     LOG_INF("pimoroni_pim447 enabled");
 
@@ -254,9 +255,6 @@ static int pimoroni_pim447_disable(const struct device *dev) {
 
     return 0;
 }
-
-
-
 
 /* Device initialization function */
 static int pimoroni_pim447_init(const struct device *dev) {
