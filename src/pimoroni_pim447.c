@@ -281,15 +281,15 @@ static int pimoroni_pim447_init(const struct device *dev) {
     data->delta_x = 0;
     data->delta_y = 0;
 
-    /* Initialize the mutex */
-    k_mutex_init(&data->data_lock);
-    k_mutex_init(&data->i2c_lock);
+    // /* Initialize the mutex */
+    // k_mutex_init(&data->data_lock);
+    // k_mutex_init(&data->i2c_lock);
 
-    /* Initialize the periodic work handler */
-    k_work_init_delayable(&data->periodic_work, pimoroni_pim447_periodic_work_handler);
+    // /* Initialize the periodic work handler */
+    // k_work_init_delayable(&data->periodic_work, pimoroni_pim447_periodic_work_handler);
 
-    /* Start the periodic work */
-    k_work_schedule(&data->periodic_work, K_MSEC(TRACKBALL_POLL_INTERVAL_MS));
+    // /* Start the periodic work */
+    // k_work_schedule(&data->periodic_work, K_MSEC(TRACKBALL_POLL_INTERVAL_MS));
 
     /* Check if the I2C device is ready */
     if (!device_is_ready(config->i2c.bus)) {
