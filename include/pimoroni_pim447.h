@@ -26,6 +26,7 @@ struct pimoroni_pim447_data {
     struct gpio_callback int_gpio_cb;
     struct k_work work;
     bool sw_pressed;
+    bool sw_pressed_prev;
 };
 
 int pimoroni_pim447_led_set(const struct device *dev, uint8_t red, uint8_t green, uint8_t blue, uint8_t white);
