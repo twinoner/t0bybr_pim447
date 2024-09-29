@@ -27,6 +27,7 @@ static int pimoroni_pim447_enable_interrupt(const struct pimoroni_pim447_config 
 static void pimoroni_pim447_periodic_work_handler(struct k_work *work) {
     struct k_work_delayable *dwork = k_work_delayable_from_work(work);
     struct pimoroni_pim447_data *data = CONTAINER_OF(dwork, struct pimoroni_pim447_data, periodic_work);
+    const struct pimoroni_pim447_config *config = data->dev->config;
     const struct device *dev = data->dev;
     int16_t delta_x, delta_y;
     bool sw_pressed;
