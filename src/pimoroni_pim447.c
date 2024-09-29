@@ -253,39 +253,6 @@ static int pimoroni_pim447_disable(const struct device *dev) {
 }
 
 
-/**
- * @brief Work handler for the LED animation.
- *
- * @param work Pointer to the work structure.
- */
-static void pimoroni_pim447_led_work_handler(struct k_work *work) {
-    struct k_work_delayable *dwork = k_work_delayable_from_work(work);
-    struct pimoroni_pim447_data *data = CONTAINER_OF(dwork, struct pimoroni_pim447_data, led_work);
-    const struct device *dev = data->dev;
-    uint8_t r, g, b;
-    int ret;
-
-    /* Increment hue */
-    data->hue += 1.0f;
-    if (data->hue >= 360.0f) {
-        data->hue -= 360.0f;
-    }
-
-    /* Convert HSV to RGB */
-    hsv_to_rgb(data->hue, 1.0f, 1.0f, &r, &g, &b);
-
-    /* Set the RGB LEDs */
-    ret = pimoroni_pim447_set_leds(dev, r, g, b, 0);
-    if (ret) {
-        LOG_ERR("Failed to set LEDs during animation: %d", ret);
-    }
-
-    /* Reschedule the work if animation is running */
-    if (data->led_animation_running) {
-        k_work_schedule(&data->led_work, K_MSEC(LED_ANIMATION_INTERVAL_MS));
-    }
-}
-
 
 /**
  * @brief Set the brightness of an LED.
@@ -388,6 +355,41 @@ static void hsv_to_rgb(float h, float s, float v, uint8_t *r, uint8_t *g, uint8_
     *b = (uint8_t)((b_prime + m) * 255);
 }
 
+
+
+
+/**
+ * @brief Work handler for the LED animation.
+ *
+ * @param work Pointer to the work structure.
+ */
+static void pimoroni_pim447_led_work_handler(struct k_work *work) {
+    struct k_work_delayable *dwork = k_work_delayable_from_work(work);
+    struct pimoroni_pim447_data *data = CONTAINER_OF(dwork, struct pimoroni_pim447_data, led_work);
+    const struct device *dev = data->dev;
+    uint8_t r, g, b;
+    int ret;
+
+    /* Increment hue */
+    data->hue += 1.0f;
+    if (data->hue >= 360.0f) {
+        data->hue -= 360.0f;
+    }
+
+    /* Convert HSV to RGB */
+    hsv_to_rgb(data->hue, 1.0f, 1.0f, &r, &g, &b);
+
+    /* Set the RGB LEDs */
+    ret = pimoroni_pim447_set_leds(dev, r, g, b, 0);
+    if (ret) {
+        LOG_ERR("Failed to set LEDs during animation: %d", ret);
+    }
+
+    /* Reschedule the work if animation is running */
+    if (data->led_animation_running) {
+        k_work_schedule(&data->led_work, K_MSEC(LED_ANIMATION_INTERVAL_MS));
+    }
+}
 
 /**
  * @brief Start the LED color cycling animation.
