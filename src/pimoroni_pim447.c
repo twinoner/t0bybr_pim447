@@ -287,13 +287,15 @@ static void pimoroni_pim447_led_work_handler(struct k_work *work) {
 }
 
 
-/* Enumeration for the LEDs */
-typedef enum {
-    PIM447_LED_RED,
-    PIM447_LED_GREEN,
-    PIM447_LED_BLUE,
-    PIM447_LED_WHITE
-} pim447_led_t;
+/**
+ * @brief Set the brightness of an LED.
+ *
+ * @param dev Pointer to the device structure for the driver instance.
+ * @param led LED to set the brightness for.
+ * @param brightness Brightness value (0 to 255).
+ *
+ * @return 0 if successful, otherwise a negative error code.
+ */
 
 int pimoroni_pim447_set_led(const struct device *dev, pim447_led_t led, uint8_t brightness) {
     const struct pimoroni_pim447_config *config = dev->config;
