@@ -172,9 +172,16 @@ static int pimoroni_pim447_enable(const struct device *dev) {
     }
 
     /* Configure the interrupt GPIO pin */
-    ret = gpio_pin_configure_dt(&config->int_gpio, GPIO_INPUT);
+    ret = gpio_pin_configure_dt(&config->int_gpio, GPIO_INPUT | GPIO_PULL_UP);
     if (ret) {
         LOG_ERR("Failed to configure interrupt GPIO");
+        return ret;
+    }
+
+    /* Configure the GPIO interrupt for falling edge (active low) */
+    ret = gpio_pin_interrupt_configure_dt(&config->int_gpio, GPIO_INT_EDGE_FALLING);
+    if (ret) {
+        LOG_ERR("Failed to configure GPIO interrupt");
         return ret;
     }
 
@@ -188,13 +195,6 @@ static int pimoroni_pim447_enable(const struct device *dev) {
         return ret;
     } else {
         LOG_INF("GPIO callback added successfully");
-    }
-
-    /* Configure the GPIO interrupt for falling edge (active low) */
-    ret = gpio_pin_interrupt_configure_dt(&config->int_gpio, GPIO_INT_EDGE_FALLING);
-    if (ret) {
-        LOG_ERR("Failed to configure GPIO interrupt");
-        return ret;
     }
 
     /* Clear any pending interrupts */
