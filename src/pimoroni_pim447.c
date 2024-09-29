@@ -32,8 +32,6 @@ static void pimoroni_pim447_periodic_work_handler(struct k_work *work) {
 
     k_mutex_lock(&data->data_lock, K_FOREVER);
 
-    LOG_INF("Periodic work handler executed");
-
 
     /* Copy and reset accumulated data */
     delta_x = data->delta_x;
@@ -87,6 +85,8 @@ static void pimoroni_pim447_gpio_callback(const struct device *port, struct gpio
     const struct pimoroni_pim447_config *config = data->dev->config;
     uint8_t buf[5];
     int ret;
+
+    LOG_INF("GPIO interrupt triggered");
 
     /* Read movement data and switch state */
     ret = i2c_burst_read_dt(&config->i2c, REG_LEFT, buf, 5);
@@ -169,6 +169,13 @@ static int pimoroni_pim447_enable(const struct device *dev) {
         return -ENODEV;
     }
 
+    /* Enable interrupt output on the trackball */
+    ret = pimoroni_pim447_enable_interrupt(config, true);
+    if (ret) {
+        LOG_ERR("Failed to enable interrupt output");
+        return ret;
+    }
+    
     /* Configure the interrupt GPIO pin */
     ret = gpio_pin_configure_dt(&config->int_gpio, GPIO_INPUT | GPIO_PULL_UP);
     if (ret) {
@@ -209,12 +216,6 @@ static int pimoroni_pim447_enable(const struct device *dev) {
         return ret;
     }
 
-    /* Enable interrupt output on the trackball */
-    ret = pimoroni_pim447_enable_interrupt(config, true);
-    if (ret) {
-        LOG_ERR("Failed to enable interrupt output");
-        return ret;
-    }
 
     LOG_INF("pimoroni_pim447 enabled");
 
