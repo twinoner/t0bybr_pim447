@@ -23,6 +23,34 @@ static void pimoroni_pim447_periodic_work_handler(struct k_work *work);
 static void pimoroni_pim447_gpio_callback(const struct device *port, struct gpio_callback *cb, gpio_port_pins_t pins);
 static int pimoroni_pim447_enable_interrupt(const struct pimoroni_pim447_config *config, bool enable);
 
+static int16_t convert_speed(int32_t value)
+{
+    bool negative = (value < 0);
+
+    if (negative) {
+        value = -value;
+    }
+
+    switch (value) {
+        case 0:  value = 0;   break;
+        case 1:  value = 1;   break;
+        case 2:  value = 4;   break;
+        case 3:  value = 8;   break;
+        case 4:  value = 18;  break;
+        case 5:  value = 32;  break;
+        case 6:  value = 50;  break;
+        case 7:  value = 72;  break;
+        case 8:  value = 98;  break;
+        default: value = 127; break;
+    }
+
+    if (negative) {
+        value = -value;
+    }
+
+    return value;
+}
+
 /* Periodic work handler function */
 static void pimoroni_pim447_periodic_work_handler(struct k_work *work) {
     struct k_work_delayable *dwork = k_work_delayable_from_work(work);
@@ -47,21 +75,21 @@ static void pimoroni_pim447_periodic_work_handler(struct k_work *work) {
 
     /* Report relative X movement */
     if (delta_x != 0) {
-        err = input_report_rel(dev, INPUT_REL_X, delta_x, true, K_NO_WAIT);
+        err = input_report_rel(dev, INPUT_REL_X, convert_speed(delta_x), false, K_NO_WAIT);
         if (err) {
             LOG_ERR("Failed to report delta_x: %d", err);
         } else {
-            LOG_DBG("Reported delta_x: %d", delta_x);
+            LOG_DBG("Reported delta_x: %d", convert_speed(delta_x));
         }
     }
 
     /* Report relative Y movement */
     if (delta_y != 0) {
-        err = input_report_rel(dev, INPUT_REL_Y, delta_y, true, K_NO_WAIT);
+        err = input_report_rel(dev, INPUT_REL_Y, convert_speed(delta_y), false, K_NO_WAIT);
         if (err) {
             LOG_ERR("Failed to report delta_y: %d", err);
         } else {
-            LOG_DBG("Reported delta_y: %d", delta_y);
+            LOG_DBG("Reported delta_y: %d", convert_speed(delta_y));
         }
     }
 
