@@ -41,19 +41,6 @@
 
 LOG_MODULE_REGISTER(zmk_pimoroni_pim447, LOG_LEVEL_DBG);
 
-/* Device configuration structure */
-struct pimoroni_pim447_config {
-    struct i2c_dt_spec i2c;
-    struct gpio_dt_spec int_gpio;
-};
-
-/* Device data structure */
-struct pimoroni_pim447_data {
-    const struct device *dev;
-    struct k_work work;
-    struct gpio_callback int_gpio_cb;
-    bool sw_pressed_prev;
-};
 
 /* Forward declaration of functions */
 static void pimoroni_pim447_work_handler(struct k_work *work);

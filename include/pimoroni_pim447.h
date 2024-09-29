@@ -1,5 +1,5 @@
-#ifndef ZMK_PIMORONI_PIM447_H
-#define ZMK_PIMORONI_PIM447_H
+#ifndef PIMORONI_PIM447_H
+#define PIMORONI_PIM447_H
 
 #include <zephyr/device.h>
 #include <zephyr/drivers/gpio.h>
@@ -31,4 +31,4 @@ int pimoroni_pim447_set_green(const struct device *dev, uint8_t value);
 int pimoroni_pim447_set_blue(const struct device *dev, uint8_t value);
 int pimoroni_pim447_set_white(const struct device *dev, uint8_t value);
 
-#endif /* ZMK_PIMORONI_PIM447_H */
+#endif /* PIMORONI_PIM447_H */
