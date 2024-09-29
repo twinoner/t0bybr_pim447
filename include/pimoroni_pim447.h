@@ -4,9 +4,6 @@
 #include <zephyr/device.h>
 #include <zephyr/drivers/gpio.h>
 #include <zephyr/drivers/i2c.h>
-#include <zephyr/drivers/sensor.h>
-#include <zephyr/sys/util.h>
-
 #include <zephyr/kernel.h>
 #include <zephyr/sys/mutex.h>
 
@@ -56,7 +53,6 @@ struct pimoroni_pim447_data {
     bool led_animation_running;
     bool sw_pressed;
     bool sw_pressed_prev;
-
 };
 
 #endif /* PIMORONI_PIM447_H */

@@ -2,7 +2,6 @@
 
 config ZMK_PIMORONI_PIM447
   bool "Pimoroni PIM447 Trackball support"
-  select INPUT
   select ZMK_MOUSE
   select I2C
   select GPIO
