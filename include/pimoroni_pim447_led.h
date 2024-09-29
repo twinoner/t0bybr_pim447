@@ -1,0 +1,24 @@
+#ifndef PIMORONI_PIM447_LED_H
+#define PIMORONI_PIM447_LED_H
+
+#include <zephyr/device.h>
+#include <zephyr/kernel.h>
+#include <zephyr/drivers/i2c.h>
+
+/* Enumeration for the LEDs */
+typedef enum {
+    PIM447_LED_RED,
+    PIM447_LED_GREEN,
+    PIM447_LED_BLUE,
+    PIM447_LED_WHITE
+} pim447_led_t;
+
+/* Function prototypes */
+int pimoroni_pim447_set_led(const struct device *dev, pim447_led_t led, uint8_t brightness);
+int pimoroni_pim447_set_leds(const struct device *dev, uint8_t red, uint8_t green, uint8_t blue, uint8_t white);
+void pimoroni_pim447_start_led_animation(const struct device *dev);
+void pimoroni_pim447_stop_led_animation(const struct device *dev);
+
+/* You may also need to declare any shared data structures or extern variables here */
+
+#endif /* PIMORONI_PIM447_LED_H */

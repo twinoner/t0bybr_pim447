@@ -35,13 +35,6 @@
 
 #define LED_ANIMATION_INTERVAL_MS 50 // Update interval in milliseconds
 
-typedef enum {
-    PIM447_LED_RED,
-    PIM447_LED_GREEN,
-    PIM447_LED_BLUE,
-    PIM447_LED_WHITE
-} pim447_led_t;
-
 struct pimoroni_pim447_config {
     struct i2c_dt_spec i2c;
     struct gpio_dt_spec int_gpio;
@@ -62,11 +55,5 @@ struct pimoroni_pim447_data {
     bool sw_pressed_prev;
 
 };
-
-int pimoroni_pim447_set_leds(const struct device *dev, uint8_t red, uint8_t green, uint8_t blue, uint8_t white);
-int pimoroni_pim447_set_led(const struct device *dev, pim447_led_t led, uint8_t brightness);
-
-void pimoroni_pim447_start_led_animation(const struct device *dev);
-void pimoroni_pim447_stop_led_animation(const struct device *dev);
 
 #endif /* PIMORONI_PIM447_H */
