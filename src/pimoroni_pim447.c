@@ -17,6 +17,7 @@
 LOG_MODULE_REGISTER(zmk_pimoroni_pim447, LOG_LEVEL_DBG);
 
 #define TRACKBALL_POLL_INTERVAL_MS 20 // Approximately 1/50 second
+#define HUE_INCREMENT_FACTOR 1.0f
 
 /* Forward declaration of functions */
 static void pimoroni_pim447_periodic_work_handler(struct k_work *work);
