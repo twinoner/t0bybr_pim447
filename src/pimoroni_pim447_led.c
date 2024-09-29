@@ -64,7 +64,7 @@ int pimoroni_pim447_set_led(const struct device *dev, pim447_led_t led, uint8_t 
     return 0;
 }
 
-static void hsv_to_rgbw(float h, float s, float v, uint8_t *r, uint8_t *g, uint8_t *b, uint8_t *w) {
+void hsv_to_rgbw(float h, float s, float v, uint8_t *r, uint8_t *g, uint8_t *b, uint8_t *w) {
     // Existing HSV to RGB conversion
     float c = v * s;
     float x = c * (1 - fabsf(fmodf(h / 60.0f, 2) - 1));
@@ -140,5 +140,5 @@ int pimoroni_pim447_set_leds(const struct device *dev, uint8_t red, uint8_t gree
 
 void pimoroni_pim447_led_init(const struct device *dev) {
     struct pimoroni_pim447_data *data = dev->data;
-    
+
 }
