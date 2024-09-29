@@ -17,17 +17,13 @@ struct pimoroni_pim447_config {
     const struct device *i2c_bus;
 
     uint16_t i2c_addr;
-    #ifdef CONFIG_ZMK_PIMORONI_PIM447_ENABLE_INTERRUPT
-        const struct gpio_dt_spec int_gpio;
-    #endif
+    const struct gpio_dt_spec int_gpio;
 };
 
 struct pimoroni_pim447_data {
     const struct device *i2c_dev;
-    const struct device *dev;  // Added to store the device pointer
-#ifdef CONFIG_ZMK_PIMORONI_PIM447_ENABLE_INTERRUPT
+    const struct device *dev;
     struct gpio_callback int_gpio_cb;
-#endif
     struct k_work work;
     bool sw_pressed;
 };
