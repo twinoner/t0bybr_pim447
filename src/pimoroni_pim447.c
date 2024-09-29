@@ -252,71 +252,40 @@ static int pimoroni_pim447_disable(const struct device *dev) {
     return 0;
 }
 
-/* Device initialization function */
-static int pimoroni_pim447_init(const struct device *dev) {
-    const struct pimoroni_pim447_config *config = dev->config;
-    struct pimoroni_pim447_data *data = dev->data;
+
+/**
+ * @brief Work handler for the LED animation.
+ *
+ * @param work Pointer to the work structure.
+ */
+static void pimoroni_pim447_led_work_handler(struct k_work *work) {
+    struct k_work_delayable *dwork = k_work_delayable_from_work(work);
+    struct pimoroni_pim447_data *data = CONTAINER_OF(dwork, struct pimoroni_pim447_data, led_work);
+    const struct device *dev = data->dev;
+    uint8_t r, g, b;
     int ret;
 
-    LOG_INF("PIM447 driver initializing");
-
-    data->dev = dev;
-    data->sw_pressed_prev = false;
-    data->delta_x = 0;
-    data->delta_y = 0;
-
-    /* Initialize the mutex */
-    k_mutex_init(&data->data_lock);
-    k_mutex_init(&data->i2c_lock);
-
-    /* Initialize the periodic work handler */
-    k_work_init_delayable(&data->periodic_work, pimoroni_pim447_periodic_work_handler);
-
-    /* Start the periodic work */
-    k_work_schedule(&data->periodic_work, K_MSEC(TRACKBALL_POLL_INTERVAL_MS));
-
-    /* Check if the I2C device is ready */
-    if (!device_is_ready(config->i2c.bus)) {
-        LOG_ERR("I2C bus device is not ready");
-        return -ENODEV;
+    /* Increment hue */
+    data->hue += 1.0f;
+    if (data->hue >= 360.0f) {
+        data->hue -= 360.0f;
     }
 
-    /* Read and log the chip ID */
-    uint8_t chip_id_l, chip_id_h;
-    ret = i2c_reg_read_byte_dt(&config->i2c, REG_CHIP_ID_L, &chip_id_l);
+    /* Convert HSV to RGB */
+    hsv_to_rgb(data->hue, 1.0f, 1.0f, &r, &g, &b);
+
+    /* Set the RGB LEDs */
+    ret = pimoroni_pim447_set_leds(dev, r, g, b, 0);
     if (ret) {
-        LOG_ERR("Failed to read chip ID low byte");
-        return ret;
+        LOG_ERR("Failed to set LEDs during animation: %d", ret);
     }
 
-    ret = i2c_reg_read_byte_dt(&config->i2c, REG_CHIP_ID_H, &chip_id_h);
-    if (ret) {
-        LOG_ERR("Failed to read chip ID high byte");
-        return ret;
+    /* Reschedule the work if animation is running */
+    if (data->led_animation_running) {
+        k_work_schedule(&data->led_work, K_MSEC(LED_ANIMATION_INTERVAL_MS));
     }
-
-    uint16_t chip_id = ((uint16_t)chip_id_h << 8) | chip_id_l;
-    LOG_INF("PIM447 chip ID: 0x%04X", chip_id);
-
-    /* Enable the Trackball */
-    ret = pimoroni_pim447_enable(dev);
-    if (ret) {
-        LOG_ERR("Failed to enable PIM447");
-        return ret;
-    }
-
-    // Initialize the LED animation work handler
-    k_work_init_delayable(&data->led_work, pimoroni_pim447_led_work_handler);
-    data->hue = 0.0f;
-    data->led_animation_running = false;
-
-    // Optionally start the animation during initialization
-    pimoroni_pim447_start_led_animation(dev);
-
-    LOG_INF("PIM447 driver initialized");
-
-    return 0;
 }
+
 
 /* Enumeration for the LEDs */
 typedef enum {
@@ -417,33 +386,6 @@ static void hsv_to_rgb(float h, float s, float v, uint8_t *r, uint8_t *g, uint8_
     *b = (uint8_t)((b_prime + m) * 255);
 }
 
-static void pimoroni_pim447_led_work_handler(struct k_work *work) {
-    struct k_work_delayable *dwork = k_work_delayable_from_work(work);
-    struct pimoroni_pim447_data *data = CONTAINER_OF(dwork, struct pimoroni_pim447_data, led_work);
-    const struct device *dev = data->dev;
-    uint8_t r, g, b;
-    int ret;
-
-    // Increment hue
-    data->hue += 1.0f;
-    if (data->hue >= 360.0f) {
-        data->hue -= 360.0f;
-    }
-
-    // Convert HSV to RGB
-    hsv_to_rgb(data->hue, 1.0f, 1.0f, &r, &g, &b);
-
-    // Set the RGB LEDs
-    ret = pimoroni_pim447_set_leds(dev, r, g, b, 0);
-    if (ret) {
-        LOG_ERR("Failed to set LEDs during animation: %d", ret);
-    }
-
-    // Reschedule the work if animation is running
-    if (data->led_animation_running) {
-        k_work_schedule(&data->led_work, K_MSEC(LED_ANIMATION_INTERVAL_MS));
-    }
-}
 
 /**
  * @brief Start the LED color cycling animation.
@@ -503,6 +445,73 @@ int pimoroni_pim447_set_leds(const struct device *dev, uint8_t red, uint8_t gree
     }
 
     LOG_DBG("LED brightness set to R:%d, G:%d, B:%d, W:%d", red, green, blue, white);
+    return 0;
+}
+
+
+/* Device initialization function */
+static int pimoroni_pim447_init(const struct device *dev) {
+    const struct pimoroni_pim447_config *config = dev->config;
+    struct pimoroni_pim447_data *data = dev->data;
+    int ret;
+
+    LOG_INF("PIM447 driver initializing");
+
+    data->dev = dev;
+    data->sw_pressed_prev = false;
+    data->delta_x = 0;
+    data->delta_y = 0;
+
+    /* Initialize the mutex */
+    k_mutex_init(&data->data_lock);
+    k_mutex_init(&data->i2c_lock);
+
+    /* Initialize the periodic work handler */
+    k_work_init_delayable(&data->periodic_work, pimoroni_pim447_periodic_work_handler);
+
+    /* Start the periodic work */
+    k_work_schedule(&data->periodic_work, K_MSEC(TRACKBALL_POLL_INTERVAL_MS));
+
+    /* Check if the I2C device is ready */
+    if (!device_is_ready(config->i2c.bus)) {
+        LOG_ERR("I2C bus device is not ready");
+        return -ENODEV;
+    }
+
+    /* Read and log the chip ID */
+    uint8_t chip_id_l, chip_id_h;
+    ret = i2c_reg_read_byte_dt(&config->i2c, REG_CHIP_ID_L, &chip_id_l);
+    if (ret) {
+        LOG_ERR("Failed to read chip ID low byte");
+        return ret;
+    }
+
+    ret = i2c_reg_read_byte_dt(&config->i2c, REG_CHIP_ID_H, &chip_id_h);
+    if (ret) {
+        LOG_ERR("Failed to read chip ID high byte");
+        return ret;
+    }
+
+    uint16_t chip_id = ((uint16_t)chip_id_h << 8) | chip_id_l;
+    LOG_INF("PIM447 chip ID: 0x%04X", chip_id);
+
+    /* Enable the Trackball */
+    ret = pimoroni_pim447_enable(dev);
+    if (ret) {
+        LOG_ERR("Failed to enable PIM447");
+        return ret;
+    }
+
+    // Initialize the LED animation work handler
+    k_work_init_delayable(&data->led_work, pimoroni_pim447_led_work_handler);
+    data->hue = 0.0f;
+    data->led_animation_running = false;
+
+    // Optionally start the animation during initialization
+    pimoroni_pim447_start_led_animation(dev);
+
+    LOG_INF("PIM447 driver initialized");
+
     return 0;
 }
 
