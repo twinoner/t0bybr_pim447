@@ -23,20 +23,6 @@ static void pimoroni_pim447_periodic_work_handler(struct k_work *work);
 static void pimoroni_pim447_gpio_callback(const struct device *port, struct gpio_callback *cb, gpio_port_pins_t pins);
 static int pimoroni_pim447_enable_interrupt(const struct pimoroni_pim447_config *config, bool enable);
 
-
-static int pimoroni_pim447_test_interrupt(const struct device *dev) {
-    const struct pimoroni_pim447_config *config = dev->config;
-
-    printk("Triggering a test interrupt on GPIO %d\n", config->int_gpio.pin);
-
-    // Briefly set the GPIO pin LOW to simulate an interrupt
-    gpio_pin_set_dt(&config->int_gpio, 0);  
-    k_msleep(100); // Hold low for a short duration
-    gpio_pin_set_dt(&config->int_gpio, 1); 
-
-    printk("Test interrupt triggered. Check logs for callback execution.\n");
-}
-
 /* Periodic work handler function */
 static void pimoroni_pim447_periodic_work_handler(struct k_work *work) {
     struct k_work_delayable *dwork = k_work_delayable_from_work(work);
@@ -205,7 +191,7 @@ static int pimoroni_pim447_enable(const struct device *dev) {
     }
 
     /* Configure the GPIO interrupt for falling edge (active low) */
-    ret = gpio_pin_interrupt_configure_dt(&config->int_gpio, GPIO_INT_EDGE_BOTH);
+    ret = gpio_pin_interrupt_configure_dt(&config->int_gpio, GPIO_INT_EDGE_TO_INACTIVE);
     if (ret) {
         LOG_ERR("Failed to configure GPIO interrupt");
         return ret;
@@ -234,7 +220,6 @@ static int pimoroni_pim447_enable(const struct device *dev) {
         return ret;
     }
 
-    pimoroni_pim447_test_interrupt(dev);
 
 
     LOG_INF("pimoroni_pim447 enabled");
