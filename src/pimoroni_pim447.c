@@ -32,7 +32,7 @@ static void pimoroni_pim447_periodic_work_handler(struct k_work *work) {
     bool sw_pressed;
     int err;
 
-    k_mutex_lock(&data->data_lock, K_FOREVER);
+    k_mutex_lock(&data->data_lock, K_NO_WAIT);
 
 
     /* Copy and reset accumulated data */
@@ -68,7 +68,7 @@ static void pimoroni_pim447_periodic_work_handler(struct k_work *work) {
 
     /* Report switch state if it changed */
     if (sw_pressed != data->sw_pressed_prev) {
-        err = input_report_key(dev, INPUT_BTN_0, sw_pressed ? 1 : 0, true, K_FOREVER);
+        err = input_report_key(dev, INPUT_BTN_0, sw_pressed ? 1 : 0, true, K_NO_WAIT);
         if (err) {
             LOG_ERR("Failed to report switch state: %d", err);
         } else {
@@ -94,7 +94,7 @@ static void pimoroni_pim447_work_handler(struct k_work *work) {
         return;
     }
 
-    k_mutex_lock(&data->data_lock, K_FOREVER);
+    k_mutex_lock(&data->data_lock, K_NO_WAIT);
 
     /* Accumulate movement data */
     data->delta_x += (int16_t)buf[1] - (int16_t)buf[0]; // RIGHT - LEFT
@@ -282,8 +282,8 @@ static int pimoroni_pim447_init(const struct device *dev) {
     data->delta_y = 0;
 
     /* Initialize the mutex */
-    // k_mutex_init(&data->data_lock);
-    // k_mutex_init(&data->i2c_lock);
+    k_mutex_init(&data->data_lock);
+    k_mutex_init(&data->i2c_lock);
 
     // /* Initialize the periodic work handler */
     // k_work_init_delayable(&data->periodic_work, pimoroni_pim447_periodic_work_handler);
@@ -307,11 +307,11 @@ static int pimoroni_pim447_init(const struct device *dev) {
 
     ret = i2c_reg_read_byte_dt(&config->i2c, REG_CHIP_ID_H, &chip_id_h);
     if (ret) {
-        LOG_ERR("Failed to read chip ID high byte");
-        return ret;
-    }
+            LOG_ERR("Failed to read chip ID high byte");
+            return ret;
+        }
 
-    uint16_t chip_id = ((uint16_t)chip_id_h << 8) | chip_id_l;
+        uint16_t chip_id = ((uint16_t)chip_id_h << 8) | chip_id_l;
     LOG_INF("PIM447 chip ID: 0x%04X", chip_id);
 
     /* Enable the Trackball */
