@@ -304,8 +304,25 @@ static int pimoroni_pim447_init(const struct device *dev) {
         return ret;
     }
 
+    pimoroni_pim447_set_led_white(dev, 255);
+
     LOG_INF("PIM447 driver initialized");
 
+    return 0;
+}
+
+int pimoroni_pim447_set_led_white(const struct device *dev, uint8_t brightness) {
+    const struct pimoroni_pim447_config *config = dev->config;
+    int ret;
+
+    /* Write the brightness value to the white LED register */
+    ret = i2c_reg_write_byte_dt(&config->i2c, REG_LED_WHT, brightness);
+    if (ret) {
+        LOG_ERR("Failed to set white LED brightness: %d", ret);
+        return ret;
+    }
+
+    LOG_DBG("White LED brightness set to %d", brightness);
     return 0;
 }
 
