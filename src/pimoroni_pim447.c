@@ -282,8 +282,8 @@ static int pimoroni_pim447_init(const struct device *dev) {
     data->delta_y = 0;
 
     /* Initialize the mutex */
-    k_mutex_init(&data->data_lock);
-    k_mutex_init(&data->i2c_lock);
+    // k_mutex_init(&data->data_lock);
+    // k_mutex_init(&data->i2c_lock);
 
     // /* Initialize the periodic work handler */
     // k_work_init_delayable(&data->periodic_work, pimoroni_pim447_periodic_work_handler);
