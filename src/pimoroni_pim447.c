@@ -215,7 +215,7 @@ static int pimoroni_pim447_enable(const struct device *dev) {
     }
 
     /* Configure the GPIO interrupt for falling edge (active low) */
-    ret = gpio_pin_interrupt_configure_dt(&config->int_gpio, GPIO_INT_EDGE_FALLING);
+    ret = gpio_pin_interrupt_configure_dt(&config->int_gpio, GPIO_INT_EDGE_RISING);
     if (ret) {
         LOG_ERR("Failed to configure GPIO interrupt");
         return ret;
