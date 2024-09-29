@@ -320,8 +320,12 @@ static int pimoroni_pim447_init(const struct device *dev) {
     return 0;
 }
 
+static const struct pimoroni_pim447_config pimoroni_pim447_config = {
+    .i2c = I2C_DT_SPEC_INST_GET(I2C1_NODE),
+    .i2c_addr = DT_REG_ADDR(DT_NODELABEL(pimoroni_pim447)), // Get the I2C address from DT
+    .int_gpio = GPIO_DT_SPEC_INST_GET(0, int_gpios),
+};
 
-/* Device data */
 static struct pimoroni_pim447_data pimoroni_pim447_data;
 
 /* Device initialization macro */
