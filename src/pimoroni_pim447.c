@@ -79,6 +79,7 @@ static void pimoroni_pim447_periodic_work_handler(struct k_work *work) {
     
     /* Read and clear the INT status register if necessary */
     uint8_t int_status;
+    int ret;
     ret = i2c_reg_read_byte_dt(&config->i2c, REG_INT, &int_status);
     if (ret) {
         LOG_ERR("Failed to read INT status register");
