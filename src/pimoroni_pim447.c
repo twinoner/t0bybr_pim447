@@ -7,6 +7,7 @@
 #include <zephyr/drivers/i2c.h>
 #include <zephyr/drivers/gpio.h>
 #include <zephyr/kernel.h>
+#include <zephyr/drivers/input/input.h>
 #include <zephyr/logging/log.h>
 #include <math.h>
 
@@ -308,7 +309,7 @@ static int pimoroni_pim447_init(const struct device *dev) {
     return 0;
 }
 
-static const struct input_driver_api pimoroni_pim447_driver_api = {
+static const struct input_dev_driver_api pimoroni_pim447_driver_api = {
     .enable = pimoroni_pim447_enable,
     .disable = pimoroni_pim447_disable,
 };
