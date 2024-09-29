@@ -76,9 +76,11 @@ static void pimoroni_pim447_periodic_work_handler(struct k_work *work) {
 
     k_mutex_unlock(&data->data_lock);
 
+    float speed = 0.0f;
+
     if (delta_x > 0 ||  delta_y > 0) {
         // Calculate movement speed
-        float speed = sqrtf((float)(delta_x * delta_x + delta_y * delta_y));
+        speed = sqrtf((float)(delta_x * delta_x + delta_y * delta_y));
     }
 
     /* Report relative X movement */
