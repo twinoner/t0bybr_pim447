@@ -76,55 +76,40 @@ static void pimoroni_pim447_periodic_work_handler(struct k_work *work) {
 
     k_mutex_unlock(&data->data_lock);
 
-    // Calculate movement speed
-    float speed = sqrtf((float)(delta_x * delta_x + delta_y * delta_y));
-
-    // Process movement events
-    // (Ensure you have the correct sync handling as discussed earlier)
-    bool event_reported = false;
-
-
+    if (delta_x > 0 ||  delta_y > 0) {
+        // Calculate movement speed
+        float speed = sqrtf((float)(delta_x * delta_x + delta_y * delta_y));
+    }
 
     /* Report relative X movement */
     if (delta_x != 0) {
-        err = input_report_rel(dev, INPUT_REL_X, delta_x, false, K_NO_WAIT);
+        err = input_report_rel(dev, INPUT_REL_X, delta_x, true, K_NO_WAIT);
         if (err) {
             LOG_ERR("Failed to report delta_x: %d", err);
         } else {
             LOG_DBG("Reported delta_x: %d", delta_x);
-            event_reported = true;
 
         }
     }
 
     /* Report relative Y movement */
     if (delta_y != 0) {
-        err = input_report_rel(dev, INPUT_REL_Y, delta_y, false, K_NO_WAIT);
+        err = input_report_rel(dev, INPUT_REL_Y, delta_y, true, K_NO_WAIT);
         if (err) {
             LOG_ERR("Failed to report delta_y: %d", err);
         } else {
             LOG_DBG("Reported delta_y: %d", delta_y);
-            event_reported = true;
         }
     }
 
     /* Report switch state if it changed */
     if (sw_pressed != data->sw_pressed_prev) {
-        err = input_report_key(dev, INPUT_BTN_0, sw_pressed ? 1 : 0, false, K_NO_WAIT);
+        err = input_report_key(dev, INPUT_BTN_0, sw_pressed ? 1 : 0, true, K_NO_WAIT);
         if (err) {
             LOG_ERR("Failed to report switch state: %d", err);
         } else {
             LOG_DBG("Reported switch state: %d", sw_pressed);
             data->sw_pressed_prev = sw_pressed;
-            event_reported = true;
-        }
-    }
-
-      // Synchronize input events
-    if (event_reported) {
-        err = input_report_sync(dev, K_NO_WAIT);
-        if (err) {
-            LOG_ERR("Failed to send sync event: %d", err);
         }
     }
 
