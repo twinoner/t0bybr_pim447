@@ -1,4 +1,4 @@
-/* pimoroni_pim447.c - Driver for Pimoroni PIM447 Trackball */
+/* pim447.c - Driver for Pimoroni PIM447 Trackball */
 
 #define DT_DRV_COMPAT zmk_pimoroni_pim447
 
@@ -8,10 +8,6 @@
 #include <zephyr/drivers/gpio.h>
 #include <zephyr/kernel.h>
 #include <zephyr/logging/log.h>
-#include <math.h>
-
-#include <pimoroni_pim447.h>
-
 
 /* Register Addresses */
 #define REG_LED_RED     0x00
@@ -39,16 +35,16 @@
 #define MSK_INT_TRIGGERED   0b00000001
 #define MSK_INT_OUT_EN      0b00000010
 
-LOG_MODULE_REGISTER(zmk_pimoroni_pim447, LOG_LEVEL_DBG);
+LOG_MODULE_REGISTER(pim447, LOG_LEVEL_DBG);
 
 /* Device configuration structure */
-struct pimoroni_pim447_config {
+struct pim447_config {
     struct i2c_dt_spec i2c;
     struct gpio_dt_spec int_gpio;
 };
 
 /* Device data structure */
-struct pimoroni_pim447_data {
+struct pim447_data {
     const struct device *dev;
     struct k_work work;
     struct gpio_callback int_gpio_cb;
@@ -56,14 +52,14 @@ struct pimoroni_pim447_data {
 };
 
 /* Forward declaration of functions */
-static void pimoroni_pim447_work_handler(struct k_work *work);
-static void pimoroni_pim447_gpio_callback(const struct device *port, struct gpio_callback *cb, gpio_port_pins_t pins);
-static int pimoroni_pim447_enable_interrupt(const struct pimoroni_pim447_config *config, bool enable);
+static void pim447_work_handler(struct k_work *work);
+static void pim447_gpio_callback(const struct device *port, struct gpio_callback *cb, gpio_port_pins_t pins);
+static int pim447_enable_interrupt(const struct pim447_config *config, bool enable);
 
 /* Work handler function */
-static void pimoroni_pim447_work_handler(struct k_work *work) {
-    struct pimoroni_pim447_data *data = CONTAINER_OF(work, struct pimoroni_pim447_data, work);
-    const struct pimoroni_pim447_config *config = data->dev->config;
+static void pim447_work_handler(struct k_work *work) {
+    struct pim447_data *data = CONTAINER_OF(work, struct pim447_data, work);
+    const struct pim447_config *config = data->dev->config;
     const struct device *dev = data->dev;
 
     uint8_t buf[5];
@@ -81,22 +77,20 @@ static void pimoroni_pim447_work_handler(struct k_work *work) {
     LOG_INF("Raw data: LEFT=%d, RIGHT=%d, UP=%d, DOWN=%d, SWITCH=0x%02X",
             buf[0], buf[1], buf[2], buf[3], buf[4]);
 
-
-
-
-
-
+    /* Calculate movement deltas */
+    int16_t delta_x = (int16_t)buf[1] - (int16_t)buf[0]; // Right - Left
+    int16_t delta_y = (int16_t)buf[3] - (int16_t)buf[2]; // Down - Up
     bool sw_pressed = (buf[4] & MSK_SWITCH_STATE) != 0;
 
-    // int err;
+    int err;
 
 
-    // err = input_report_key(dev, INPUT_BTN_0, sw_pressed ? 1 : 0, true, K_FOREVER);
-    // if (err) {
-    //     LOG_ERR("Failed to report switch state: %d", err);
-    // } else {
-    //     LOG_DBG("Reported switch state: %d", sw_pressed);
-    // }
+    err = input_report_key(dev, INPUT_BTN_LEFT, sw_pressed ? 1 : 0, true, K_NO_WAIT);
+    if (err) {
+        LOG_ERR("Failed to report switch state: %d", err);
+    } else {
+        LOG_DBG("Reported switch state: %d", sw_pressed);
+    }
 
 
     /* Clear movement registers by writing zeros */
@@ -110,23 +104,29 @@ static void pimoroni_pim447_work_handler(struct k_work *work) {
         LOG_ERR("Failed to clear movement registers");
     }
 
+    /* Log the movement data */
+    if (delta_x || delta_y || sw_pressed != data->sw_pressed_prev) {
+        LOG_INF("Trackball moved: delta_x=%d, delta_y=%d, sw_pressed=%d",
+                delta_x, delta_y, sw_pressed);
+        data->sw_pressed_prev = sw_pressed;
+    }
 
 
-    // /* Report relative X movement */
-    // err = input_report_rel(dev, INPUT_REL_X, delta_x, true, K_NO_WAIT);
-    // if (err) {
-    //     LOG_ERR("Failed to report delta_x: %d", err);
-    // } else {
-    //     LOG_DBG("Reported delta_x: %d", delta_x);
-    // }
+    /* Report relative X movement */
+    err = input_report_rel(dev, INPUT_REL_X, delta_x, true, K_NO_WAIT);
+    if (err) {
+        LOG_ERR("Failed to report delta_x: %d", err);
+    } else {
+        LOG_DBG("Reported delta_x: %d", delta_x);
+    }
 
-    // /* Report relative Y movement */
-    // err = input_report_rel(dev, INPUT_REL_Y, delta_y, true, K_NO_WAIT);
-    // if (err) {
-    //     LOG_ERR("Failed to report delta_y: %d", err);
-    // } else {
-    //     LOG_DBG("Reported delta_y: %d", delta_y);
-    // }
+    /* Report relative Y movement */
+    err = input_report_rel(dev, INPUT_REL_Y, delta_y, true, K_NO_WAIT);
+    if (err) {
+        LOG_ERR("Failed to report delta_y: %d", err);
+    } else {
+        LOG_DBG("Reported delta_y: %d", delta_y);
+    }
 
     /* Read and clear the INT status register if necessary */
     uint8_t int_status;
@@ -150,9 +150,9 @@ static void pimoroni_pim447_work_handler(struct k_work *work) {
 }
 
 /* GPIO callback function */
-static void pimoroni_pim447_gpio_callback(const struct device *port, struct gpio_callback *cb, gpio_port_pins_t pins) {
-    struct pimoroni_pim447_data *data = CONTAINER_OF(cb, struct pimoroni_pim447_data, int_gpio_cb);
-    const struct pimoroni_pim447_config *config = data->dev->config;
+static void pim447_gpio_callback(const struct device *port, struct gpio_callback *cb, gpio_port_pins_t pins) {
+    struct pim447_data *data = CONTAINER_OF(cb, struct pim447_data, int_gpio_cb);
+    const struct pim447_config *config = data->dev->config;
 
     LOG_INF("GPIO callback triggered on pin %d", config->int_gpio.pin);
 
@@ -160,7 +160,7 @@ static void pimoroni_pim447_gpio_callback(const struct device *port, struct gpio
 }
 
 /* Function to enable or disable interrupt output */
-static int pimoroni_pim447_enable_interrupt(const struct pimoroni_pim447_config *config, bool enable) {
+static int pim447_enable_interrupt(const struct pim447_config *config, bool enable) {
     uint8_t int_reg;
     int ret;
 
@@ -193,12 +193,12 @@ static int pimoroni_pim447_enable_interrupt(const struct pimoroni_pim447_config 
 }
 
 /* Enable function */
-static int pimoroni_pim447_enable(const struct device *dev) {
-    const struct pimoroni_pim447_config *config = dev->config;
-    struct pimoroni_pim447_data *data = dev->data;
+static int pim447_enable(const struct device *dev) {
+    const struct pim447_config *config = dev->config;
+    struct pim447_data *data = dev->data;
     int ret;
 
-    LOG_INF("pimoroni_pim447_enable called");
+    LOG_INF("pim447_enable called");
 
     /* Check if the interrupt GPIO device is ready */
     if (!device_is_ready(config->int_gpio.port)) {
@@ -214,7 +214,7 @@ static int pimoroni_pim447_enable(const struct device *dev) {
     }
 
     /* Initialize the GPIO callback */
-    gpio_init_callback(&data->int_gpio_cb, pimoroni_pim447_gpio_callback, BIT(config->int_gpio.pin));
+    gpio_init_callback(&data->int_gpio_cb, pim447_gpio_callback, BIT(config->int_gpio.pin));
 
     /* Add the GPIO callback */
     ret = gpio_add_callback(config->int_gpio.port, &data->int_gpio_cb);
@@ -247,27 +247,27 @@ static int pimoroni_pim447_enable(const struct device *dev) {
     }
 
     /* Enable interrupt output on the trackball */
-    ret = pimoroni_pim447_enable_interrupt(config, true);
+    ret = pim447_enable_interrupt(config, true);
     if (ret) {
         LOG_ERR("Failed to enable interrupt output");
         return ret;
     }
 
-    LOG_INF("pimoroni_pim447 enabled");
+    LOG_INF("pim447 enabled");
 
     return 0;
 }
 
 /* Disable function */
-static int pimoroni_pim447_disable(const struct device *dev) {
-    const struct pimoroni_pim447_config *config = dev->config;
-    struct pimoroni_pim447_data *data = dev->data;
+static int pim447_disable(const struct device *dev) {
+    const struct pim447_config *config = dev->config;
+    struct pim447_data *data = dev->data;
     int ret;
 
-    LOG_INF("pimoroni_pim447_disable called");
+    LOG_INF("pim447_disable called");
 
     /* Disable interrupt output on the trackball */
-    ret = pimoroni_pim447_enable_interrupt(config, false);
+    ret = pim447_enable_interrupt(config, false);
     if (ret) {
         LOG_ERR("Failed to disable interrupt output");
         return ret;
@@ -283,18 +283,16 @@ static int pimoroni_pim447_disable(const struct device *dev) {
     /* Remove the GPIO callback */
     gpio_remove_callback(config->int_gpio.port, &data->int_gpio_cb);
 
-    LOG_INF("pimoroni_pim447 disabled");
+    LOG_INF("pim447 disabled");
 
     return 0;
 }
 
 /* Device initialization function */
-static int pimoroni_pim447_init(const struct device *dev) {
-    const struct pimoroni_pim447_config *config = dev->config;
-    struct pimoroni_pim447_data *data = dev->data;
+static int pim447_init(const struct device *dev) {
+    const struct pim447_config *config = dev->config;
+    struct pim447_data *data = dev->data;
     int ret;
-
-    LOG_INF("PIM447 driver initializing");
 
     data->dev = dev;
     data->sw_pressed_prev = false;
@@ -323,25 +321,26 @@ static int pimoroni_pim447_init(const struct device *dev) {
     LOG_INF("PIM447 chip ID: 0x%04X", chip_id);
 
     /* Enable the Trackball */
-    pimoroni_pim447_enable(dev);
+    pim447_enable(dev);
 
     /* Initialize the work handler */
-    k_work_init(&data->work, pimoroni_pim447_work_handler);
+    k_work_init(&data->work, pim447_work_handler);
 
     LOG_INF("PIM447 driver initialized");
 
     return 0;
 }
 
+
 /* Device configuration */
-static const struct pimoroni_pim447_config pimoroni_pim447_config = {
+static const struct pim447_config pim447_config = {
     .i2c = I2C_DT_SPEC_INST_GET(0),
     .int_gpio = GPIO_DT_SPEC_INST_GET(0, int_gpios),
 };
 
 /* Device data */
-static struct pimoroni_pim447_data pimoroni_pim447_data;
+static struct pim447_data pim447_data;
 
-/* Device initialization macro */
-DEVICE_DT_INST_DEFINE(0, pimoroni_pim447_init, NULL, &pimoroni_pim447_data, &pimoroni_pim447_config,
-                    POST_KERNEL, CONFIG_INPUT_INIT_PRIORITY, NULL);
+    /* Device initialization macro */
+    DEVICE_DT_INST_DEFINE(0, pim447_init, NULL, &pim447_data, &pim447_config,
+                        POST_KERNEL, CONFIG_INPUT_INIT_PRIORITY, NULL);
