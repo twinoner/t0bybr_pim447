@@ -220,6 +220,9 @@ static int pimoroni_pim447_enable(const struct device *dev) {
         return ret;
     }
 
+    pimoroni_pim447_gpio_callback(NULL, &data->int_gpio_cb, BIT(config->int_gpio.pin));
+
+
 
 
     LOG_INF("pimoroni_pim447 enabled");
