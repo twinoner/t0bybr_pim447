@@ -218,7 +218,6 @@ static int pimoroni_pim447_enable(const struct device *dev) {
         return ret;
     }
 
-
     LOG_INF("pimoroni_pim447 enabled");
 
     return 0;
