@@ -317,7 +317,7 @@ pimoroni_pim447_test_interrupt(dev);
     return 0;
 }
 
-static void pimoroni_pim447_test_interrupt(const struct device *dev) {
+static int pimoroni_pim447_test_interrupt(const struct device *dev) {
     const struct pimoroni_pim447_config *config = dev->config;
 
     printk("Triggering a test interrupt on GPIO %d\n", config->int_gpio.pin);
