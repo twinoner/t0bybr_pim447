@@ -333,11 +333,6 @@ static int pimoroni_pim447_init(const struct device *dev) {
     return 0;
 }
 
-/* Device configuration */
-static const struct pimoroni_pim447_config pimoroni_pim447_config = {
-    .i2c = I2C_DT_SPEC_INST_GET(0),
-    .int_gpio = GPIO_DT_SPEC_INST_GET(0, int_gpios),
-};
 
 /* Device data */
 static struct pimoroni_pim447_data pimoroni_pim447_data;
