@@ -99,21 +99,21 @@ static void pimoroni_pim447_work_handler(struct k_work *work) {
 
 
 
-    /* Report relative X movement */
-    err = input_report_rel(dev, INPUT_REL_X, delta_x, true, K_NO_WAIT);
-    if (err) {
-        LOG_ERR("Failed to report delta_x: %d", err);
-    } else {
-        LOG_DBG("Reported delta_x: %d", delta_x);
-    }
+    // /* Report relative X movement */
+    // err = input_report_rel(dev, INPUT_REL_X, delta_x, true, K_NO_WAIT);
+    // if (err) {
+    //     LOG_ERR("Failed to report delta_x: %d", err);
+    // } else {
+    //     LOG_DBG("Reported delta_x: %d", delta_x);
+    // }
 
-    /* Report relative Y movement */
-    err = input_report_rel(dev, INPUT_REL_Y, delta_y, true, K_NO_WAIT);
-    if (err) {
-        LOG_ERR("Failed to report delta_y: %d", err);
-    } else {
-        LOG_DBG("Reported delta_y: %d", delta_y);
-    }
+    // /* Report relative Y movement */
+    // err = input_report_rel(dev, INPUT_REL_Y, delta_y, true, K_NO_WAIT);
+    // if (err) {
+    //     LOG_ERR("Failed to report delta_y: %d", err);
+    // } else {
+    //     LOG_DBG("Reported delta_y: %d", delta_y);
+    // }
 
     /* Read and clear the INT status register if necessary */
     uint8_t int_status;
