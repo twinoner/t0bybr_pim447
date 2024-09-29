@@ -10,57 +10,80 @@
 #include <zephyr/logging/log.h>
 #include <math.h>
 
-#include <pimoroni_pim447.h>
-
-
-/* Register Addresses */
-#define REG_LED_RED     0x00
-#define REG_LED_GRN     0x01
-#define REG_LED_BLU     0x02
-#define REG_LED_WHT     0x03
-#define REG_LEFT        0x04
-#define REG_RIGHT       0x05
-#define REG_UP          0x06
-#define REG_DOWN        0x07
-#define REG_SWITCH      0x08
-#define REG_USER_FLASH  0xD0
-#define REG_FLASH_PAGE  0xF0
-#define REG_INT         0xF9
-#define REG_CHIP_ID_L   0xFA
-#define REG_CHIP_ID_H   0xFB
-#define REG_VERSION     0xFC
-#define REG_I2C_ADDR    0xFD
-#define REG_CTRL        0xFE
-
-/* Bit Masks */
-#define MSK_SWITCH_STATE    0b10000000
-
-/* Interrupt Masks */
-#define MSK_INT_TRIGGERED   0b00000001
-#define MSK_INT_OUT_EN      0b00000010
+#include "pimoroni_pim447.h"
 
 LOG_MODULE_REGISTER(zmk_pimoroni_pim447, LOG_LEVEL_DBG);
 
-static const struct pimoroni_pim447_config pimoroni_pim447_config = {
-    .i2c = I2C_DT_SPEC_INST_GET(0),
-    .int_gpio = GPIO_DT_SPEC_INST_GET(0, int_gpios),
-};
+#define TRACKBALL_POLL_INTERVAL_MS 8 // Approximately 1/120 second
 
 /* Forward declaration of functions */
-static void pimoroni_pim447_work_handler(struct k_work *work);
+static void pimoroni_pim447_periodic_work_handler(struct k_work *work);
 static void pimoroni_pim447_gpio_callback(const struct device *port, struct gpio_callback *cb, gpio_port_pins_t pins);
 static int pimoroni_pim447_enable_interrupt(const struct pimoroni_pim447_config *config, bool enable);
 
-/* Work handler function */
-static void pimoroni_pim447_work_handler(struct k_work *work) {
-    struct pimoroni_pim447_data *data = CONTAINER_OF(work, struct pimoroni_pim447_data, work);
-    const struct pimoroni_pim447_config *config = data->dev->config;
+/* Periodic work handler function */
+static void pimoroni_pim447_periodic_work_handler(struct k_work *work) {
+    struct k_work_delayable *dwork = k_work_delayable_from_work(work);
+    struct pimoroni_pim447_data *data = CONTAINER_OF(dwork, struct pimoroni_pim447_data, periodic_work);
     const struct device *dev = data->dev;
+    int16_t delta_x, delta_y;
+    bool sw_pressed;
+    int err;
 
+    k_mutex_lock(&data->data_lock, K_FOREVER);
+
+    /* Copy and reset accumulated data */
+    delta_x = data->delta_x;
+    delta_y = data->delta_y;
+    data->delta_x = 0;
+    data->delta_y = 0;
+
+    /* Get switch state */
+    sw_pressed = data->sw_pressed;
+
+    k_mutex_unlock(&data->data_lock);
+
+    /* Report relative X movement */
+    if (delta_x != 0) {
+        err = input_report_rel(dev, INPUT_REL_X, delta_x, true, K_NO_WAIT);
+        if (err) {
+            LOG_ERR("Failed to report delta_x: %d", err);
+        } else {
+            LOG_DBG("Reported delta_x: %d", delta_x);
+        }
+    }
+
+    /* Report relative Y movement */
+    if (delta_y != 0) {
+        err = input_report_rel(dev, INPUT_REL_Y, delta_y, true, K_NO_WAIT);
+        if (err) {
+            LOG_ERR("Failed to report delta_y: %d", err);
+        } else {
+            LOG_DBG("Reported delta_y: %d", delta_y);
+        }
+    }
+
+    /* Report switch state if it changed */
+    if (sw_pressed != data->sw_pressed_prev) {
+        err = input_report_key(dev, INPUT_BTN_0, sw_pressed ? 1 : 0, true, K_FOREVER);
+        if (err) {
+            LOG_ERR("Failed to report switch state: %d", err);
+        } else {
+            LOG_DBG("Reported switch state: %d", sw_pressed);
+            data->sw_pressed_prev = sw_pressed;
+        }
+    }
+
+    /* Reschedule the work */
+    k_work_schedule(&data->periodic_work, K_MSEC(TRACKBALL_POLL_INTERVAL_MS)); // Schedule next execution
+}
+
+/* GPIO callback function */
+static void pimoroni_pim447_gpio_callback(const struct device *port, struct gpio_callback *cb, gpio_port_pins_t pins) {
+    struct pimoroni_pim447_data *data = CONTAINER_OF(cb, struct pimoroni_pim447_data, int_gpio_cb);
+    const struct pimoroni_pim447_config *config = data->dev->config;
     uint8_t buf[5];
     int ret;
-
-    LOG_INF("Work handler executed");
 
     /* Read movement data and switch state */
     ret = i2c_burst_read_dt(&config->i2c, REG_LEFT, buf, 5);
@@ -69,85 +92,31 @@ static void pimoroni_pim447_work_handler(struct k_work *work) {
         return;
     }
 
-    LOG_INF("Raw data: LEFT=%d, RIGHT=%d, UP=%d, DOWN=%d, SWITCH=0x%02X",
-            buf[0], buf[1], buf[2], buf[3], buf[4]);
+    k_mutex_lock(&data->data_lock, K_FOREVER);
 
+    /* Accumulate movement data */
+    data->delta_x += (int16_t)buf[1] - (int16_t)buf[0]; // RIGHT - LEFT
+    data->delta_y += (int16_t)buf[3] - (int16_t)buf[2]; // DOWN - UP
 
+    /* Update switch state */
+    data->sw_pressed = (buf[4] & MSK_SWITCH_STATE) != 0;
 
+    k_mutex_unlock(&data->data_lock);
 
-
-
-    bool sw_pressed = (buf[4] & MSK_SWITCH_STATE) != 0;
-
-    int err;
-
-
-    err = input_report_key(dev, INPUT_BTN_0, sw_pressed ? 1 : 0, true, K_FOREVER);
-    if (err) {
-        LOG_ERR("Failed to report switch state: %d", err);
-    } else {
-        LOG_DBG("Reported switch state: %d", sw_pressed);
-    }
-
-
-    /* Clear movement registers by writing zeros */
+    /* Clear movement registers */
     uint8_t zero = 0;
-    ret = i2c_reg_write_byte_dt(&config->i2c, REG_LEFT, zero);
-    ret |= i2c_reg_write_byte_dt(&config->i2c, REG_RIGHT, zero);
-    ret |= i2c_reg_write_byte_dt(&config->i2c, REG_UP, zero);
-    ret |= i2c_reg_write_byte_dt(&config->i2c, REG_DOWN, zero);
+    i2c_reg_write_byte_dt(&config->i2c, REG_LEFT, zero);
+    i2c_reg_write_byte_dt(&config->i2c, REG_RIGHT, zero);
+    i2c_reg_write_byte_dt(&config->i2c, REG_UP, zero);
+    i2c_reg_write_byte_dt(&config->i2c, REG_DOWN, zero);
 
-    if (ret) {
-        LOG_ERR("Failed to clear movement registers");
-    }
-
-
-
-    // /* Report relative X movement */
-    // err = input_report_rel(dev, INPUT_REL_X, delta_x, true, K_NO_WAIT);
-    // if (err) {
-    //     LOG_ERR("Failed to report delta_x: %d", err);
-    // } else {
-    //     LOG_DBG("Reported delta_x: %d", delta_x);
-    // }
-
-    // /* Report relative Y movement */
-    // err = input_report_rel(dev, INPUT_REL_Y, delta_y, true, K_NO_WAIT);
-    // if (err) {
-    //     LOG_ERR("Failed to report delta_y: %d", err);
-    // } else {
-    //     LOG_DBG("Reported delta_y: %d", delta_y);
-    // }
-
-    /* Read and clear the INT status register if necessary */
+    /* Clear the interrupt */
     uint8_t int_status;
     ret = i2c_reg_read_byte_dt(&config->i2c, REG_INT, &int_status);
-    if (ret) {
-        LOG_ERR("Failed to read INT status register");
-        return;
-    }
-
-    LOG_INF("INT status before clearing: 0x%02X", int_status);
-
-    if (int_status & MSK_INT_TRIGGERED) {
+    if (ret == 0 && (int_status & MSK_INT_TRIGGERED)) {
         int_status &= ~MSK_INT_TRIGGERED;
-        ret = i2c_reg_write_byte_dt(&config->i2c, REG_INT, int_status);
-        if (ret) {
-            LOG_ERR("Failed to clear INT status register");
-            return;
-        }
-        LOG_INF("INT status after clearing: 0x%02X", int_status);
+        i2c_reg_write_byte_dt(&config->i2c, REG_INT, int_status);
     }
-}
-
-/* GPIO callback function */
-static void pimoroni_pim447_gpio_callback(const struct device *port, struct gpio_callback *cb, gpio_port_pins_t pins) {
-    struct pimoroni_pim447_data *data = CONTAINER_OF(cb, struct pimoroni_pim447_data, int_gpio_cb);
-    const struct pimoroni_pim447_config *config = data->dev->config;
-
-    LOG_INF("GPIO callback triggered on pin %d", config->int_gpio.pin);
-
-    k_work_submit(&data->work);
 }
 
 /* Function to enable or disable interrupt output */
@@ -197,8 +166,8 @@ static int pimoroni_pim447_enable(const struct device *dev) {
         return -ENODEV;
     }
 
-    /* Configure the interrupt GPIO pin without internal pull-up (external pull-up used) */
-    ret = gpio_pin_configure_dt(&config->int_gpio, GPIO_INPUT);
+    /* Configure the interrupt GPIO pin */
+    ret = gpio_pin_configure_dt(&config->int_gpio, GPIO_INPUT | GPIO_PULL_UP);
     if (ret) {
         LOG_ERR("Failed to configure interrupt GPIO");
         return ret;
@@ -215,7 +184,7 @@ static int pimoroni_pim447_enable(const struct device *dev) {
     }
 
     /* Configure the GPIO interrupt for falling edge (active low) */
-    ret = gpio_pin_interrupt_configure_dt(&config->int_gpio, GPIO_INT_EDGE_RISING);
+    ret = gpio_pin_interrupt_configure_dt(&config->int_gpio, GPIO_INT_EDGE_FALLING);
     if (ret) {
         LOG_ERR("Failed to configure GPIO interrupt");
         return ret;
@@ -289,6 +258,17 @@ static int pimoroni_pim447_init(const struct device *dev) {
 
     data->dev = dev;
     data->sw_pressed_prev = false;
+    data->delta_x = 0;
+    data->delta_y = 0;
+
+    /* Initialize the mutex */
+    k_mutex_init(&data->data_lock);
+
+    /* Initialize the periodic work handler */
+    k_work_init_delayable(&data->periodic_work, pimoroni_pim447_periodic_work_handler);
+
+    /* Start the periodic work */
+    k_work_schedule(&data->periodic_work, K_MSEC(TRACKBALL_POLL_INTERVAL_MS));
 
     /* Check if the I2C device is ready */
     if (!device_is_ready(config->i2c.bus)) {
@@ -314,18 +294,24 @@ static int pimoroni_pim447_init(const struct device *dev) {
     LOG_INF("PIM447 chip ID: 0x%04X", chip_id);
 
     /* Enable the Trackball */
-    pimoroni_pim447_enable(dev);
-
-    /* Initialize the work handler */
-    k_work_init(&data->work, pimoroni_pim447_work_handler);
+    ret = pimoroni_pim447_enable(dev);
+    if (ret) {
+        LOG_ERR("Failed to enable PIM447");
+        return ret;
+    }
 
     LOG_INF("PIM447 driver initialized");
 
     return 0;
 }
 
+static const struct pimoroni_pim447_config pimoroni_pim447_config = {
+    .i2c = I2C_DT_SPEC_INST_GET(0),
+    .int_gpio = GPIO_DT_SPEC_INST_GET(0, int_gpios),
+};
+
 static struct pimoroni_pim447_data pimoroni_pim447_data;
 
 /* Device initialization macro */
 DEVICE_DT_INST_DEFINE(0, pimoroni_pim447_init, NULL, &pimoroni_pim447_data, &pimoroni_pim447_config,
-                    POST_KERNEL, CONFIG_INPUT_INIT_PRIORITY, NULL);
+                      POST_KERNEL, CONFIG_INPUT_INIT_PRIORITY, NULL);
