@@ -211,7 +211,7 @@ static int pimoroni_pim447_enable(const struct device *dev) {
     // if (ret) {
     //     LOG_ERR("Failed to clear INT status register");
     //     return ret;
-    }
+    // }
     
     /* Enable interrupt output on the trackball */
     ret = pimoroni_pim447_enable_interrupt(config, true);
