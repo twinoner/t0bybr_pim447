@@ -186,19 +186,15 @@ static int pimoroni_pim447_enable(const struct device *dev) {
     }
 
     /* Initialize the GPIO callback */
-    ret = gpio_init_callback(&data->int_gpio_cb, pimoroni_pim447_gpio_callback, BIT(config->int_gpio.pin));
-    if (ret) {
-        LOG_ERR("Failed to initialize GPIO callback");
-        return ret;
-    } else {
-        LOG_INF("GPIO callback initialized");
-    }
+    gpio_init_callback(&data->int_gpio_cb, pimoroni_pim447_gpio_callback, BIT(config->int_gpio.pin));
 
     /* Add the GPIO callback */
     ret = gpio_add_callback(config->int_gpio.port, &data->int_gpio_cb);
     if (ret) {
         LOG_ERR("Failed to add GPIO callback");
         return ret;
+    } else {
+        LOG_INF("GPIO callback added successfully");
     }
 
     /* Configure the GPIO interrupt for falling edge (active low) */
