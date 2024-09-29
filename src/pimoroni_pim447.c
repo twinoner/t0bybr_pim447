@@ -262,7 +262,7 @@ static int pimoroni_pim447_test_interrupt(const struct device *dev) {
 
     // Briefly set the GPIO pin LOW to simulate an interrupt
     gpio_pin_set_dt(&config->int_gpio, 0);  
-    k_msleep(10); // Hold low for a short duration
+    k_msleep(100); // Hold low for a short duration
     gpio_pin_set_dt(&config->int_gpio, 1); 
 
     printk("Test interrupt triggered. Check logs for callback execution.\n");
