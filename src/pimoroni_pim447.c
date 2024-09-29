@@ -448,7 +448,6 @@ int pimoroni_pim447_set_leds(const struct device *dev, uint8_t red, uint8_t gree
         return ret;
     }
 
-    LOG_DBG("LED brightness set to R:%d, G:%d, B:%d, W:%d", red, green, blue, white);
     return 0;
 }
 
