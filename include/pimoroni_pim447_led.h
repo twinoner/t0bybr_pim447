@@ -13,6 +13,9 @@ typedef enum {
     PIM447_LED_WHITE
 } pim447_led_t;
 
+void pimoroni_pim447_led_init(const struct device *dev);
+
+
 /* Function prototypes */
 int pimoroni_pim447_set_led(const struct device *dev, pim447_led_t led, uint8_t brightness);
 int pimoroni_pim447_set_leds(const struct device *dev, uint8_t red, uint8_t green, uint8_t blue, uint8_t white);

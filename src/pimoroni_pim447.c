@@ -310,13 +310,9 @@ static int pimoroni_pim447_init(const struct device *dev) {
         return ret;
     }
 
-    // Initialize the LED animation work handler
-    k_work_init_delayable(&data->led_work, pimoroni_pim447_led_work_handler);
-    data->hue = 0.0f;
-    data->led_animation_running = false;
+    /* Initialize the LED functionality */
+    pimoroni_pim447_led_init(dev);
 
-    // Optionally start the animation during initialization
-    pimoroni_pim447_start_led_animation(dev);
 
     LOG_INF("PIM447 driver initialized");
 
