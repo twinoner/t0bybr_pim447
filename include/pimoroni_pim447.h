@@ -6,17 +6,14 @@
 #include <zephyr/drivers/i2c.h>
 #include <zephyr/sys/util.h>
 
-#define I2C1_NODE DT_NODELABEL(pimoroni_pim447)
 
 
 
-static const struct i2c_dt_spec pimoroni_pim447_i2c = I2C_DT_SPEC_GET(I2C1_NODE); 
 
 
 struct pimoroni_pim447_config {
-    const struct device *i2c;
-    uint16_t i2c_addr;
-    const struct gpio_dt_spec int_gpio;
+    struct i2c_dt_spec i2c;
+    struct gpio_dt_spec int_gpio;
 };
 
 struct pimoroni_pim447_data {
