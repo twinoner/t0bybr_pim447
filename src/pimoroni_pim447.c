@@ -59,7 +59,7 @@ static void pimoroni_pim447_work_handler(struct k_work *work) {
     LOG_INF("Work handler executed");
 
     /* Read movement data and switch state */
-    ret = i2c_burst_read_dt(&config->i2c, REG_LEFT, buf, 5);
+    ret = i2c_burst_read_dt(&config->i2c_bus, REG_LEFT, buf, 5);
     if (ret) {
         LOG_ERR("Failed to read movement data from PIM447");
         return;
@@ -88,10 +88,10 @@ static void pimoroni_pim447_work_handler(struct k_work *work) {
 
     /* Clear movement registers by writing zeros */
     uint8_t zero = 0;
-    ret = i2c_reg_write_byte_dt(&config->i2c, REG_LEFT, zero);
-    ret |= i2c_reg_write_byte_dt(&config->i2c, REG_RIGHT, zero);
-    ret |= i2c_reg_write_byte_dt(&config->i2c, REG_UP, zero);
-    ret |= i2c_reg_write_byte_dt(&config->i2c, REG_DOWN, zero);
+    ret = i2c_reg_write_byte_dt(&config->i2c_bus, REG_LEFT, zero);
+    ret |= i2c_reg_write_byte_dt(&config->i2c_bus, REG_RIGHT, zero);
+    ret |= i2c_reg_write_byte_dt(&config->i2c_bus, REG_UP, zero);
+    ret |= i2c_reg_write_byte_dt(&config->i2c_bus, REG_DOWN, zero);
 
     if (ret) {
         LOG_ERR("Failed to clear movement registers");
@@ -117,7 +117,7 @@ static void pimoroni_pim447_work_handler(struct k_work *work) {
 
     /* Read and clear the INT status register if necessary */
     uint8_t int_status;
-    ret = i2c_reg_read_byte_dt(&config->i2c, REG_INT, &int_status);
+    ret = i2c_reg_read_byte_dt(&config->i2c_bus, REG_INT, &int_status);
     if (ret) {
         LOG_ERR("Failed to read INT status register");
         return;
@@ -127,7 +127,7 @@ static void pimoroni_pim447_work_handler(struct k_work *work) {
 
     if (int_status & MSK_INT_TRIGGERED) {
         int_status &= ~MSK_INT_TRIGGERED;
-        ret = i2c_reg_write_byte_dt(&config->i2c, REG_INT, int_status);
+        ret = i2c_reg_write_byte_dt(&config->i2c_bus, REG_INT, int_status);
         if (ret) {
             LOG_ERR("Failed to clear INT status register");
             return;
@@ -152,7 +152,7 @@ static int pimoroni_pim447_enable_interrupt(const struct pimoroni_pim447_config 
     int ret;
 
     /* Read the current INT register value */
-    ret = i2c_reg_read_byte_dt(&config->i2c, REG_INT, &int_reg);
+    ret = i2c_reg_read_byte_dt(&config->i2c_bus, REG_INT, &int_reg);
     if (ret) {
         LOG_ERR("Failed to read INT register");
         return ret;
@@ -168,7 +168,7 @@ static int pimoroni_pim447_enable_interrupt(const struct pimoroni_pim447_config 
     }
 
     /* Write the updated INT register value */
-    ret = i2c_reg_write_byte_dt(&config->i2c, REG_INT, int_reg);
+    ret = i2c_reg_write_byte_dt(&config->i2c_bus, REG_INT, int_reg);
     if (ret) {
         LOG_ERR("Failed to write INT register");
         return ret;
@@ -219,7 +219,7 @@ static int pimoroni_pim447_enable(const struct device *dev) {
 
     /* Clear any pending interrupts */
     uint8_t int_status;
-    ret = i2c_reg_read_byte_dt(&config->i2c, REG_INT, &int_status);
+    ret = i2c_reg_read_byte_dt(&config->i2c_bus, REG_INT, &int_status);
     if (ret) {
         LOG_ERR("Failed to read INT status register");
         return ret;
@@ -227,7 +227,7 @@ static int pimoroni_pim447_enable(const struct device *dev) {
 
     /* Clear the MSK_INT_TRIGGERED bit */
     int_status &= ~MSK_INT_TRIGGERED;
-    ret = i2c_reg_write_byte_dt(&config->i2c, REG_INT, int_status);
+    ret = i2c_reg_write_byte_dt(&config->i2c_bus, REG_INT, int_status);
     if (ret) {
         LOG_ERR("Failed to clear INT status register");
         return ret;
@@ -294,13 +294,13 @@ static int pimoroni_pim447_init(const struct device *dev) {
 
     /* Read and log the chip ID */
     uint8_t chip_id_l, chip_id_h;
-    ret = i2c_reg_read_byte_dt(&config->i2c, REG_CHIP_ID_L, &chip_id_l);
+    ret = i2c_reg_read_byte_dt(&config->i2c_bus, REG_CHIP_ID_L, &chip_id_l);
     if (ret) {
         LOG_ERR("Failed to read chip ID low byte");
         return ret;
     }
 
-    ret = i2c_reg_read_byte_dt(&config->i2c, REG_CHIP_ID_H, &chip_id_h);
+    ret = i2c_reg_read_byte_dt(&config->i2c_bus, REG_CHIP_ID_H, &chip_id_h);
     if (ret) {
         LOG_ERR("Failed to read chip ID high byte");
         return ret;
