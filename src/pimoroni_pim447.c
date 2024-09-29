@@ -34,7 +34,6 @@ static void pimoroni_pim447_periodic_work_handler(struct k_work *work) {
 
     k_mutex_lock(&data->data_lock, K_NO_WAIT);
 
-
     /* Copy and reset accumulated data */
     delta_x = data->delta_x;
     delta_y = data->delta_y;
@@ -125,7 +124,6 @@ static void pimoroni_pim447_work_handler(struct k_work *work) {
 /* GPIO callback function */
 static void pimoroni_pim447_gpio_callback(const struct device *port, struct gpio_callback *cb, gpio_port_pins_t pins) {
     struct pimoroni_pim447_data *data = CONTAINER_OF(cb, struct pimoroni_pim447_data, int_gpio_cb);
-    LOG_INF("GPIO interrupt triggered on port %s, pins 0x%08x", port->name, pins);
 
     /* Schedule the work item to handle the interrupt in thread context */
     k_work_submit(&data->irq_work);
@@ -227,11 +225,6 @@ static int pimoroni_pim447_enable(const struct device *dev) {
         return ret;
     }
 
-    // pimoroni_pim447_gpio_callback(NULL, &data->int_gpio_cb, BIT(config->int_gpio.pin));
-
-
-
-
     LOG_INF("pimoroni_pim447 enabled");
 
     return 0;
@@ -285,11 +278,11 @@ static int pimoroni_pim447_init(const struct device *dev) {
     k_mutex_init(&data->data_lock);
     k_mutex_init(&data->i2c_lock);
 
-    // /* Initialize the periodic work handler */
-    // k_work_init_delayable(&data->periodic_work, pimoroni_pim447_periodic_work_handler);
+    /* Initialize the periodic work handler */
+    k_work_init_delayable(&data->periodic_work, pimoroni_pim447_periodic_work_handler);
 
-    // /* Start the periodic work */
-    // k_work_schedule(&data->periodic_work, K_MSEC(TRACKBALL_POLL_INTERVAL_MS));
+    /* Start the periodic work */
+    k_work_schedule(&data->periodic_work, K_MSEC(TRACKBALL_POLL_INTERVAL_MS));
 
     /* Check if the I2C device is ready */
     if (!device_is_ready(config->i2c.bus)) {
