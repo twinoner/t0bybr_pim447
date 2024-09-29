@@ -27,7 +27,6 @@ static int pimoroni_pim447_enable_interrupt(const struct pimoroni_pim447_config 
 static void pimoroni_pim447_periodic_work_handler(struct k_work *work) {
     struct k_work_delayable *dwork = k_work_delayable_from_work(work);
     struct pimoroni_pim447_data *data = CONTAINER_OF(dwork, struct pimoroni_pim447_data, periodic_work);
-    const struct pimoroni_pim447_config *config = data->dev->config;
     const struct device *dev = data->dev;
     int16_t delta_x, delta_y;
     bool sw_pressed;
@@ -77,27 +76,6 @@ static void pimoroni_pim447_periodic_work_handler(struct k_work *work) {
             data->sw_pressed_prev = sw_pressed;
         }
     }
-    
-    /* Read and clear the INT status register if necessary */
-    uint8_t int_status;
-    int ret;
-    ret = i2c_reg_read_byte_dt(&config->i2c, REG_INT, &int_status);
-    if (ret) {
-        LOG_ERR("Failed to read INT status register");
-        return;
-    }
-
-    LOG_INF("INT status before clearing: 0x%02X", int_status);
-
-    if (int_status & MSK_INT_TRIGGERED) {
-        int_status &= ~MSK_INT_TRIGGERED;
-        ret = i2c_reg_write_byte_dt(&config->i2c, REG_INT, int_status);
-        if (ret) {
-            LOG_ERR("Failed to clear INT status register");
-            return;
-        }
-        LOG_INF("INT status after clearing: 0x%02X", int_status);
-    }
 
     /* Reschedule the work */
     k_work_schedule(&data->periodic_work, K_MSEC(TRACKBALL_POLL_INTERVAL_MS)); // Schedule next execution
@@ -110,7 +88,7 @@ static void pimoroni_pim447_gpio_callback(const struct device *port, struct gpio
     uint8_t buf[5];
     int ret;
 
-    LOG_INF("GPIO interrupt triggered");
+    LOG_ERR("GPIO interrupt triggered on port %s, pins 0x%08x", port->name, pins);
 
     /* Read movement data and switch state */
     ret = i2c_burst_read_dt(&config->i2c, REG_LEFT, buf, 5);
