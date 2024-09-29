@@ -49,6 +49,7 @@ struct pimoroni_pim447_data {
     struct k_mutex i2c_lock;    /* New mutex for I2C operations */
     int16_t delta_x;
     int16_t delta_y;
+    float hue;
     bool sw_pressed;
     bool sw_pressed_prev;
 };
