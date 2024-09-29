@@ -14,7 +14,7 @@ if ZMK_PIMORONI_PIM447
     bool "Enable Pimoroni PIM447 Trackball Actions behavior"
     depends on ZMK_PIMORONI_PIM447
     select ZMK_BEHAVIORS
-    default y
+    # default y
     help
       Enable Pimoroni PIM447 Trackball behaviors.
 
