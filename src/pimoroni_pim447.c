@@ -98,7 +98,7 @@ static void pimoroni_pim447_periodic_work_handler(struct k_work *work) {
 
     /* Report switch state if it changed */
     if (sw_pressed != data->sw_pressed_prev) {
-        err = input_report_key(dev, INPUT_BTN_0, sw_pressed ? 1 : 0, true, K_NO_WAIT);
+        err = input_report_key(dev, INPUT_BTN_0, sw_pressed ? 1 : 0, false, K_NO_WAIT);
         if (err) {
             LOG_ERR("Failed to report switch state: %d", err);
         } else {
