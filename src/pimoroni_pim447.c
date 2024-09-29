@@ -23,7 +23,7 @@ static void pimoroni_pim447_periodic_work_handler(struct k_work *work);
 static void pimoroni_pim447_gpio_callback(const struct device *port, struct gpio_callback *cb, gpio_port_pins_t pins);
 static int pimoroni_pim447_enable_interrupt(const struct pimoroni_pim447_config *config, bool enable);
 
-static int16_t convert_speed(int32_t value)
+static int16_t convert_speed(int16_t value)
 {
     bool negative = (value < 0);
 
@@ -71,25 +71,28 @@ static void pimoroni_pim447_periodic_work_handler(struct k_work *work) {
     /* Get switch state */
     sw_pressed = data->sw_pressed;
 
+    delta_x = convert_speed(delta_x);
+    delta_y = convert_speed(delta_y);
+
     k_mutex_unlock(&data->data_lock);
 
     /* Report relative X movement */
     if (delta_x != 0) {
-        err = input_report_rel(dev, INPUT_REL_X, convert_speed(delta_x), false, K_NO_WAIT);
+        err = input_report_rel(dev, INPUT_REL_X, delta_x, false, K_NO_WAIT);
         if (err) {
             LOG_ERR("Failed to report delta_x: %d", err);
         } else {
-            LOG_DBG("Reported delta_x: %d", convert_speed(delta_x));
+            LOG_DBG("Reported delta_x: %d", delta_x);
         }
     }
 
     /* Report relative Y movement */
     if (delta_y != 0) {
-        err = input_report_rel(dev, INPUT_REL_Y, convert_speed(delta_y), false, K_NO_WAIT);
+        err = input_report_rel(dev, INPUT_REL_Y, delta_y, false, K_NO_WAIT);
         if (err) {
             LOG_ERR("Failed to report delta_y: %d", err);
         } else {
-            LOG_DBG("Reported delta_y: %d", convert_speed(delta_y));
+            LOG_DBG("Reported delta_y: %d", delta_y);
         }
     }
 
