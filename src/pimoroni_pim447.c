@@ -220,6 +220,9 @@ static int pimoroni_pim447_enable(const struct device *dev) {
         return ret;
     }
 
+    pimoroni_pim447_test_interrupt(dev);
+
+
     LOG_INF("pimoroni_pim447 enabled");
 
     return 0;
@@ -324,7 +327,6 @@ static int pimoroni_pim447_init(const struct device *dev) {
     /* Initialize the LED functionality */
     pimoroni_pim447_led_init(dev);
 
-    pimoroni_pim447_test_interrupt(dev);
     
     LOG_INF("PIM447 driver initialized");
 
