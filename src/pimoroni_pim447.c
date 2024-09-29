@@ -81,19 +81,16 @@ static void pimoroni_pim447_periodic_work_handler(struct k_work *work) {
     k_work_schedule(&data->periodic_work, K_MSEC(TRACKBALL_POLL_INTERVAL_MS)); // Schedule next execution
 }
 
-/* GPIO callback function */
-static void pimoroni_pim447_gpio_callback(const struct device *port, struct gpio_callback *cb, gpio_port_pins_t pins) {
-    struct pimoroni_pim447_data *data = CONTAINER_OF(cb, struct pimoroni_pim447_data, int_gpio_cb);
+static void pimoroni_pim447_work_handler(struct k_work *work) {
+    struct pimoroni_pim447_data *data = CONTAINER_OF(work, struct pimoroni_pim447_data, irq_work);
     const struct pimoroni_pim447_config *config = data->dev->config;
     uint8_t buf[5];
     int ret;
 
-    LOG_ERR("GPIO interrupt triggered on port %s, pins 0x%08x", port->name, pins);
-
     /* Read movement data and switch state */
     ret = i2c_burst_read_dt(&config->i2c, REG_LEFT, buf, 5);
     if (ret) {
-        LOG_ERR("Failed to read movement data from PIM447");
+        LOG_ERR("Failed to read movement data from PIM447: %d", ret);
         return;
     }
 
@@ -122,6 +119,16 @@ static void pimoroni_pim447_gpio_callback(const struct device *port, struct gpio
         int_status &= ~MSK_INT_TRIGGERED;
         i2c_reg_write_byte_dt(&config->i2c, REG_INT, int_status);
     }
+}
+
+
+/* GPIO callback function */
+static void pimoroni_pim447_gpio_callback(const struct device *port, struct gpio_callback *cb, gpio_port_pins_t pins) {
+    struct pimoroni_pim447_data *data = CONTAINER_OF(cb, struct pimoroni_pim447_data, int_gpio_cb);
+    LOG_INF("GPIO interrupt triggered on port %s, pins 0x%08x", port->name, pins);
+
+    /* Schedule the work item to handle the interrupt in thread context */
+    k_work_submit(&data->irq_work);
 }
 
 /* Function to enable or disable interrupt output */
@@ -274,9 +281,9 @@ static int pimoroni_pim447_init(const struct device *dev) {
     data->delta_x = 0;
     data->delta_y = 0;
 
-    // /* Initialize the mutex */
-    // k_mutex_init(&data->data_lock);
-    // k_mutex_init(&data->i2c_lock);
+    /* Initialize the mutex */
+    k_mutex_init(&data->data_lock);
+    k_mutex_init(&data->i2c_lock);
 
     // /* Initialize the periodic work handler */
     // k_work_init_delayable(&data->periodic_work, pimoroni_pim447_periodic_work_handler);
@@ -317,6 +324,7 @@ static int pimoroni_pim447_init(const struct device *dev) {
     /* Initialize the LED functionality */
     pimoroni_pim447_led_init(dev);
 
+    k_work_init(&data->irq_work, pimoroni_pim447_work_handler);
     
     LOG_INF("PIM447 driver initialized");
 
