@@ -175,7 +175,7 @@ static int pimoroni_pim447_enable(const struct device *dev) {
         LOG_ERR("Failed to enable interrupt output");
         return ret;
     }
-    
+
     /* Configure the interrupt GPIO pin */
     ret = gpio_pin_configure_dt(&config->int_gpio, GPIO_INPUT | GPIO_PULL_UP);
     if (ret) {
@@ -194,7 +194,7 @@ static int pimoroni_pim447_enable(const struct device *dev) {
     }
 
     /* Configure the GPIO interrupt for falling edge (active low) */
-    ret = gpio_pin_interrupt_configure_dt(&config->int_gpio, GPIO_INT_EDGE_RISING);
+    ret = gpio_pin_interrupt_configure_dt(&config->int_gpio, GPIO_INT_EDGE_FALLING);
     if (ret) {
         LOG_ERR("Failed to configure GPIO interrupt");
         return ret;
