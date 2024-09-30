@@ -54,4 +54,5 @@ struct pimoroni_pim447_data {
     bool sw_pressed_prev;
 };
 
+
 #endif /* PIMORONI_PIM447_H */
