@@ -13,3 +13,7 @@ properties:
     type: phandle-array
     required: true
     description: Interrupt pin
+
+  automouse-layer:
+    type: int
+    default: -1

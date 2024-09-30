@@ -382,6 +382,25 @@ static int pimoroni_pim447_init(const struct device *dev) {
     return 0;
 }
 
+#define AUTOMOUSE_LAYER (DT_PROP(DT_DRV_INST(0), automouse_layer))
+#if AUTOMOUSE_LAYER > 0
+    struct k_timer automouse_layer_timer;
+    static bool automouse_triggered = false;
+
+    static void activate_automouse_layer() {
+        automouse_triggered = true;
+        zmk_keymap_layer_activate(AUTOMOUSE_LAYER);
+        k_timer_start(&automouse_layer_timer, K_MSEC(CONFIG_PMW3610_AUTOMOUSE_TIMEOUT_MS), K_NO_WAIT);
+    }
+
+    static void deactivate_automouse_layer(struct k_timer *timer) {
+        automouse_triggered = false;
+        zmk_keymap_layer_deactivate(AUTOMOUSE_LAYER);
+    }
+
+    K_TIMER_DEFINE(automouse_layer_timer, deactivate_automouse_layer, NULL);
+#endif
+
 static const struct pimoroni_pim447_config pimoroni_pim447_config = {
     .i2c = I2C_DT_SPEC_INST_GET(0),
     .int_gpio = GPIO_DT_SPEC_INST_GET(0, int_gpios),

@@ -10,6 +10,10 @@ config ZMK_PIMORONI_PIM447
 
 if ZMK_PIMORONI_PIM447
 
+  config ZMK_PIMORONI_PIM447_AUTOMOUSE_TIMEOUT_MS
+    int "Amount of milliseconds the mouse layer will be active after using the trackball"
+    default 400
+
   config ZMK_PIMORONI_PIM447_BEHAVIORS
     bool "Enable Pimoroni PIM447 Trackball Actions behavior"
     depends on ZMK_PIMORONI_PIM447
