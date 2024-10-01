@@ -177,9 +177,9 @@ static void pimoroni_pim447_work_handler(struct k_work *work) {
     // float scaling_factor = 1.0f + ((MAX_SPEED - 1.0f) * (MAX_TIME - time_between_interrupts)) / MAX_TIME;
 
     float scaling_factor = 1.0f; 
-    if (time_diff < MAX_TIME) {
+    if (time_between_interrupts < MAX_TIME) {
         // Exponential scaling calculation
-        float exponent = -3.0f * (float)time_diff / MAX_TIME; // Adjust -3.0f for desired curve
+        float exponent = -3.0f * (float)time_between_interrupts / MAX_TIME; // Adjust -3.0f for desired curve
         scaling_factor = 1.0f + (MAX_SPEED - 1.0f) * expf(exponent); 
     }
 
