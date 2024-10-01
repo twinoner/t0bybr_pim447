@@ -32,6 +32,9 @@ static int pimoroni_pim447_enable_interrupt(const struct pimoroni_pim447_config 
 static void activate_automouse_layer();
 static void deactivate_automouse_layer(struct k_timer *timer);
 
+previous_x = 0; 
+previous_y = 0;
+
 
 static int16_t convert_speed(int16_t value)
 {

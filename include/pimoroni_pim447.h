@@ -54,6 +54,8 @@ struct pimoroni_pim447_data {
     atomic_t y_buffer;
     uint32_t last_interrupt_time;
     uint32_t previous_interrupt_time;
+    int previous_x; 
+    int previous_y;
 
 };
 
