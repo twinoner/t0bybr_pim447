@@ -166,20 +166,33 @@ static void pimoroni_pim447_work_handler(struct k_work *work) {
     int16_t delta_x = (int16_t)buf[1] - (int16_t)buf[0]; // RIGHT - LEFT
     int16_t delta_y = (int16_t)buf[3] - (int16_t)buf[2]; // DOWN - UP
 
-    /* Accumulate deltas atomically */
-    atomic_add(&data->x_buffer, delta_x);
-    atomic_add(&data->y_buffer, delta_y);
 
+    /* Calculate deltas */
+    int16_t delta_x = (int16_t)buf[1] - (int16_t)buf[0]; // RIGHT - LEFT
+    int16_t delta_y = (int16_t)buf[3] - (int16_t)buf[2]; // DOWN - UP
 
-    /* Increase smoothing counter */
-    if (data->smoothing_counter < SMOOTHING_CYCLES) {
-        data->smoothing_counter++;
+    /* Report movement immediately if non-zero */
+    if (delta_x != 0 || delta_y != 0) {
+        /* Report relative X movement */
+        if (delta_x != 0) {
+            ret = input_report_rel(data->dev, INPUT_REL_X, delta_x, true, K_NO_WAIT);
+            if (ret) {
+                LOG_ERR("Failed to report delta_x: %d", ret);
+            } else {
+                LOG_DBG("Reported delta_x: %d", delta_x);
+            }
+        }
+
+        /* Report relative Y movement */
+        if (delta_y != 0) {
+            ret = input_report_rel(data->dev, INPUT_REL_Y, delta_y, true, K_NO_WAIT);
+            if (ret) {
+                LOG_ERR("Failed to report delta_y: %d", ret);
+            } else {
+                LOG_DBG("Reported delta_y: %d", delta_y);
+            }
+        }
     }
-
-    /* Calculate smoothed movement */
-    int16_t smoothed_x = data->x_buffer / data->smoothing_counter;
-    int16_t smoothed_y = data->y_buffer / data->smoothing_counter;
-
 
     /* Clear movement registers */
     uint8_t zero = 0;
@@ -200,31 +213,6 @@ static void pimoroni_pim447_work_handler(struct k_work *work) {
     data->sw_pressed = (buf[4] & MSK_SWITCH_STATE) != 0;
 
 
-    /* Report smoothed movement if significant */
-    if (smoothed_x != 0 || smoothed_y != 0) {
-        /* Report relative X movement */
-        if (smoothed_x != 0) {
-            ret = input_report_rel(data->dev, INPUT_REL_X, smoothed_x, true, K_NO_WAIT);
-            if (ret) {
-                LOG_ERR("Failed to report smoothed delta_x: %d", ret);
-            }
-        }
-
-        /* Report relative Y movement */
-        if (smoothed_y != 0) {
-            ret = input_report_rel(data->dev, INPUT_REL_Y, smoothed_y, true, K_NO_WAIT);
-            if (ret) {
-                LOG_ERR("Failed to report smoothed delta_y: %d", ret);
-            }
-        }
-
-        /* Subtract reported movement from buffer */
-        data->x_buffer -= smoothed_x * data->smoothing_counter;
-        data->y_buffer -= smoothed_y * data->smoothing_counter;
-
-        /* Reset smoothing counter */
-        data->smoothing_counter = 0;
-    }
 }
 
 
