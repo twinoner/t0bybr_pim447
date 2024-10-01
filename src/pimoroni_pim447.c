@@ -379,8 +379,8 @@ static int pimoroni_pim447_init(const struct device *dev) {
 
     data->dev = dev;
     data->sw_pressed_prev = false;
-    data->delta_x = 0;
-    data->delta_y = 0;
+    // data->delta_x = 0;
+    // data->delta_y = 0;
 
     /* Initialize the mutex */
     // k_mutex_init(&data->data_lock);
