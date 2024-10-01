@@ -156,6 +156,7 @@ static int16_t convert_speed(int16_t value)
 static void pimoroni_pim447_work_handler(struct k_work *work) {
     struct pimoroni_pim447_data *data = CONTAINER_OF(work, struct pimoroni_pim447_data, irq_work);
     const struct pimoroni_pim447_config *config = data->dev->config;
+    const struct device *dev = data->dev;
     uint8_t buf[5];
     int ret;
 
@@ -264,7 +265,7 @@ static void pimoroni_pim447_work_handler(struct k_work *work) {
          hsv_to_rgbw(data->hue, 1.0f, 1.0f, &r, &g, &b, &w);
 
         int err;
-        
+
          // Set the LEDs
          err = pimoroni_pim447_set_leds(dev, r, g, b, w);
          if (err) {
