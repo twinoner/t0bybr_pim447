@@ -150,13 +150,9 @@ static void pimoroni_pim447_work_handler(struct k_work *work) {
     uint8_t buf[5];
     int ret;
 
-        /* Calculate time between interrupts */
-    uint32_t time_between_interrupts = data->last_interrupt_time - data->previous_interrupt_time;
+    LOG_INF("PIM447 work handler triggered");
 
-    /* Log the time between interrupts */
-    LOG_INF("Time between interrupts: %u ms", time_between_interrupts);
-
-
+ 
     /* Read movement data and switch state */
     ret = i2c_burst_read_dt(&config->i2c, REG_LEFT, buf, 5);
     if (ret) {
@@ -164,18 +160,13 @@ static void pimoroni_pim447_work_handler(struct k_work *work) {
         return;
     }
 
-    LOG_INF("PIM447 work handler triggered");
+    /* Calculate deltas */
+    int16_t delta_x = (int16_t)buf[1] - (int16_t)buf[0]; // RIGHT - LEFT
+    int16_t delta_y = (int16_t)buf[3] - (int16_t)buf[2]; // DOWN - UP
 
-    k_mutex_lock(&data->data_lock, K_NO_WAIT);
-
-    /* Accumulate movement data */
-    data->delta_x += (int16_t)buf[1] - (int16_t)buf[0]; // RIGHT - LEFT
-    data->delta_y += (int16_t)buf[3] - (int16_t)buf[2]; // DOWN - UP
-
-    /* Update switch state */
-    data->sw_pressed = (buf[4] & MSK_SWITCH_STATE) != 0;
-
-    k_mutex_unlock(&data->data_lock);
+    /* Accumulate deltas atomically */
+    atomic_add(&data->x_buffer, delta_x);
+    atomic_add(&data->y_buffer, delta_y);
 
     /* Clear movement registers */
     uint8_t zero = 0;
@@ -191,17 +182,42 @@ static void pimoroni_pim447_work_handler(struct k_work *work) {
         int_status &= ~MSK_INT_TRIGGERED;
         i2c_reg_write_byte_dt(&config->i2c, REG_INT, int_status);
     }
+
+    /* Update switch state */
+    data->sw_pressed = (buf[4] & MSK_SWITCH_STATE) != 0;
+
+
+    /* Report smoothed movement if significant */
+    if (smoothed_x != 0 || smoothed_y != 0) {
+        /* Report relative X movement */
+        if (smoothed_x != 0) {
+            ret = input_report_rel(data->dev, INPUT_REL_X, smoothed_x, true, K_NO_WAIT);
+            if (ret) {
+                LOG_ERR("Failed to report smoothed delta_x: %d", ret);
+            }
+        }
+
+        /* Report relative Y movement */
+        if (smoothed_y != 0) {
+            ret = input_report_rel(data->dev, INPUT_REL_Y, smoothed_y, true, K_NO_WAIT);
+            if (ret) {
+                LOG_ERR("Failed to report smoothed delta_y: %d", ret);
+            }
+        }
+
+        /* Subtract reported movement from buffer */
+        data->x_buffer -= smoothed_x * data->smoothing_counter;
+        data->y_buffer -= smoothed_y * data->smoothing_counter;
+
+        /* Reset smoothing counter */
+        data->smoothing_counter = 0;
+    }
 }
 
 
 /* GPIO callback function */
 static void pimoroni_pim447_gpio_callback(const struct device *port, struct gpio_callback *cb, gpio_port_pins_t pins) {
     struct pimoroni_pim447_data *data = CONTAINER_OF(cb, struct pimoroni_pim447_data, int_gpio_cb);
-
-    /* Record the timestamp of the interrupt */
-    uint32_t current_time = k_uptime_get();
-    data->previous_interrupt_time = data->last_interrupt_time;
-    data->last_interrupt_time = current_time;
 
 
     /* Schedule the work item to handle the interrupt in thread context */
@@ -354,14 +370,14 @@ static int pimoroni_pim447_init(const struct device *dev) {
     data->delta_y = 0;
 
     /* Initialize the mutex */
-    k_mutex_init(&data->data_lock);
-    k_mutex_init(&data->i2c_lock);
+    // k_mutex_init(&data->data_lock);
+    // k_mutex_init(&data->i2c_lock);
 
-    /* Initialize the periodic work handler */
-    k_work_init_delayable(&data->periodic_work, pimoroni_pim447_periodic_work_handler);
+    // /* Initialize the periodic work handler */
+    // k_work_init_delayable(&data->periodic_work, pimoroni_pim447_periodic_work_handler);
 
-    /* Start the periodic work */
-    k_work_schedule(&data->periodic_work, K_MSEC(TRACKBALL_POLL_INTERVAL_MS));
+    // /* Start the periodic work */
+    // k_work_schedule(&data->periodic_work, K_MSEC(TRACKBALL_POLL_INTERVAL_MS));
 
     /* Check if the I2C device is ready */
     if (!device_is_ready(config->i2c.bus)) {

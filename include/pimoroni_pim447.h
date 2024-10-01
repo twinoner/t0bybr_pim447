@@ -47,14 +47,12 @@ struct pimoroni_pim447_data {
     struct k_work irq_work;     // Work item for handling interrupts
     struct k_mutex data_lock;   /* Existing mutex for data synchronization */
     struct k_mutex i2c_lock;    /* New mutex for I2C operations */
-    int16_t delta_x;
-    int16_t delta_y;
     float hue;
     bool sw_pressed;
     bool sw_pressed_prev;
-
-    uint32_t last_interrupt_time;
-    uint32_t previous_interrupt_time;
+    atomic_t x_buffer;
+    atomic_t y_buffer;
+    uint8_t smoothing_counter;
 };
 
 
