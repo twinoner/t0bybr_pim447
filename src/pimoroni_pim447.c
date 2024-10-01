@@ -263,6 +263,8 @@ static void pimoroni_pim447_work_handler(struct k_work *work) {
          uint8_t r, g, b, w;
          hsv_to_rgbw(data->hue, 1.0f, 1.0f, &r, &g, &b, &w);
 
+        int err;
+        
          // Set the LEDs
          err = pimoroni_pim447_set_leds(dev, r, g, b, w);
          if (err) {
