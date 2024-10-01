@@ -160,7 +160,7 @@ void pim447_enable_sleep(const struct device *dev) {
     uint8_t ctrl_reg_value;
 
     // Read the current control register value
-    if (i2c_reg_read_byte_dt(&config->i2c, PIM447_CTRL_REG_ADDR, &ctrl_reg_value) != 0) {
+    if (i2c_reg_read_byte_dt(&config->i2c, MSK_CTRL_SLEEP, &ctrl_reg_value) != 0) {
         LOG_ERR("Failed to read PIM447 control register");
         return;
     }
@@ -168,7 +168,7 @@ void pim447_enable_sleep(const struct device *dev) {
     ctrl_reg_value |= MSK_CTRL_SLEEP; // Set the SLEEP bit
 
     // Write the modified value back
-    if (i2c_reg_write_byte_dt(&config->i2c, PIM447_CTRL_REG_ADDR, ctrl_reg_value) != 0) {
+    if (i2c_reg_write_byte_dt(&config->i2c, MSK_CTRL_SLEEP, ctrl_reg_value) != 0) {
         LOG_ERR("Failed to write PIM447 control register");
         return;
     }
@@ -183,7 +183,7 @@ void pim447_disable_sleep(const struct device *dev) {
     uint8_t ctrl_reg_value;
 
     // Read the current control register value
-    if (i2c_reg_read_byte_dt(&config->i2c, PIM447_CTRL_REG_ADDR, &ctrl_reg_value) != 0) {
+    if (i2c_reg_read_byte_dt(&config->i2c, MSK_CTRL_SLEEP, &ctrl_reg_value) != 0) {
         LOG_ERR("Failed to read PIM447 control register");
         return;
     }
@@ -191,7 +191,7 @@ void pim447_disable_sleep(const struct device *dev) {
     ctrl_reg_value &= ~MSK_CTRL_SLEEP; // Clear the SLEEP bit
 
     // Write the modified value back
-    if (i2c_reg_write_byte_dt(&config->i2c, PIM447_CTRL_REG_ADDR, ctrl_reg_value) != 0) {
+    if (i2c_reg_write_byte_dt(&config->i2c, MSK_CTRL_SLEEP, ctrl_reg_value) != 0) {
         LOG_ERR("Failed to write PIM447 control register");
         return;
     }
