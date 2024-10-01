@@ -146,25 +146,6 @@ static int16_t convert_speed(int16_t value)
 //     k_work_schedule(&data->periodic_work, K_MSEC(TRACKBALL_POLL_INTERVAL_MS)); // Schedule next execution
 // }
 
-float pimoroni_pim447_get_precision(struct pimoroni_pim447_data *data) {
-    return ((float)data->precision / 128.0f);
-}
-
-void pimoroni_pim447_set_precision(struct pimoroni_pim447_data *data, float precision) {
-    data->precision = (uint16_t)(precision * 128.0f);
-}
-
-int16_t apply_nonlinear_scaling(int16_t delta, uint16_t precision) {
-    bool is_negative = (delta < 0);
-    uint16_t magnitude = (uint16_t)(is_negative ? -delta : delta);
-
-    /* Apply quadratic scaling */
-    uint32_t scaled_magnitude = (magnitude * magnitude * precision) >> 7;
-
-    int16_t result = (int16_t)scaled_magnitude;
-    return is_negative ? -result : result;
-}
-
 static void pimoroni_pim447_work_handler(struct k_work *work) {
     struct pimoroni_pim447_data *data = CONTAINER_OF(work, struct pimoroni_pim447_data, irq_work);
     const struct pimoroni_pim447_config *config = data->dev->config;
@@ -174,65 +155,44 @@ static void pimoroni_pim447_work_handler(struct k_work *work) {
     LOG_INF("PIM447 work handler triggered");
 
  
-    /* Read movement data */
+    /* Read movement data and switch state */
     ret = i2c_burst_read_dt(&config->i2c, REG_LEFT, buf, 5);
     if (ret) {
         LOG_ERR("Failed to read movement data from PIM447: %d", ret);
         return;
     }
 
-    /* Calculate raw deltas */
+    /* Calculate deltas */
     int16_t delta_x = (int16_t)buf[1] - (int16_t)buf[0]; // RIGHT - LEFT
     int16_t delta_y = (int16_t)buf[3] - (int16_t)buf[2]; // DOWN - UP
 
-    /* Apply non-linear scaling */
-    int16_t adjusted_delta_x = apply_nonlinear_scaling(delta_x, data->precision);
-    int16_t adjusted_delta_y = apply_nonlinear_scaling(delta_y, data->precision);
+    /* Accumulate deltas atomically */
+    atomic_add(&data->x_buffer, delta_x);
+    atomic_add(&data->y_buffer, delta_y);
 
-    /* Accumulate in buffers */
-    data->x_buffer += adjusted_delta_x;
-    data->y_buffer += adjusted_delta_y;
-
-    /* Initialize smoothing counter */
-    if (data->smoothing_counter == 0) {
-        data->smoothing_counter = data->smoothing_cycles;
-    }
-
-    /* Calculate smoothed movement */
-    int16_t smoothed_x = 0;
-    int16_t smoothed_y = 0;
-
-    if (data->smoothing_counter > 0) {
-        smoothed_x = (int16_t)(data->x_buffer / data->smoothing_counter);
-        smoothed_y = (int16_t)(data->y_buffer / data->smoothing_counter);
-
-        /* Decrease smoothing counter */
-        data->smoothing_counter--;
-
-        /* Subtract the reported movement from buffers */
-        data->x_buffer -= smoothed_x;
-        data->y_buffer -= smoothed_y;
-    }
-
-    /* Report movement if significant */
-    if (smoothed_x != 0 || smoothed_y != 0) {
+    /* Report movement immediately if non-zero */
+    if (delta_x != 0 || delta_y != 0) {
         /* Report relative X movement */
-        if (smoothed_x != 0) {
-            ret = input_report_rel(data->dev, INPUT_REL_X, smoothed_x, true, K_NO_WAIT);
+        if (delta_x != 0) {
+            ret = input_report_rel(data->dev, INPUT_REL_X, delta_x, true, K_NO_WAIT);
             if (ret) {
-                LOG_ERR("Failed to report smoothed delta_x: %d", ret);
+                LOG_ERR("Failed to report delta_x: %d", ret);
+            } else {
+                LOG_DBG("Reported delta_x: %d", delta_x);
             }
         }
 
         /* Report relative Y movement */
-        if (smoothed_y != 0) {
-            ret = input_report_rel(data->dev, INPUT_REL_Y, smoothed_y, true, K_NO_WAIT);
+        if (delta_y != 0) {
+            ret = input_report_rel(data->dev, INPUT_REL_Y, delta_y, true, K_NO_WAIT);
             if (ret) {
-                LOG_ERR("Failed to report smoothed delta_y: %d", ret);
+                LOG_ERR("Failed to report delta_y: %d", ret);
+            } else {
+                LOG_DBG("Reported delta_y: %d", delta_y);
             }
         }
     }
-   
+
     /* Update switch state */
     data->sw_pressed = (buf[4] & MSK_SWITCH_STATE) != 0;
 
@@ -408,12 +368,6 @@ static int pimoroni_pim447_init(const struct device *dev) {
 
     data->dev = dev;
     data->sw_pressed_prev = false;
-    data->precision = 128; // Default precision value (adjust as needed)
-    data->smoothing_cycles = 15; // Number of cycles over which to release movement
-    data->smoothing_counter = 0;
-    data->x_buffer = 0.0f;
-    data->y_buffer = 0.0f;
-
     // data->delta_x = 0;
     // data->delta_y = 0;
 

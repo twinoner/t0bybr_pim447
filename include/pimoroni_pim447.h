@@ -52,10 +52,6 @@ struct pimoroni_pim447_data {
     bool sw_pressed_prev;
     atomic_t x_buffer;
     atomic_t y_buffer;
-    uint8_t smoothing_cycles;
-    uint8_t smoothing_counter;
-    uint16_t precision; // Precision scaling factor
-
 };
 
 
