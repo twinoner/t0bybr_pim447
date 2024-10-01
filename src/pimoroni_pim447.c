@@ -16,10 +16,12 @@
 
 LOG_MODULE_REGISTER(zmk_pimoroni_pim447, LOG_LEVEL_DBG);
 
-#define SMOOTHING_CYCLES 15
 
 #define TRACKBALL_POLL_INTERVAL_MS 20 // Approximately 1/50 second
 #define HUE_INCREMENT_FACTOR 1.0f
+
+#define MAX_SPEED 200
+#define MAX_TIME 50
 
 /* Forward declaration of functions */
 // static void pimoroni_pim447_periodic_work_handler(struct k_work *work);
@@ -162,9 +164,17 @@ static void pimoroni_pim447_work_handler(struct k_work *work) {
         return;
     }
 
+    uint32_t time_between_interrupts;
+
+    k_mutex_lock(&data->data_lock, K_FOREVER);
+    time_between_interrupts = data->last_interrupt_time - data->previous_interrupt_time;
+    k_mutex_unlock(&data->data_lock);
+
     /* Calculate deltas */
     int16_t delta_x = (int16_t)buf[1] - (int16_t)buf[0]; // RIGHT - LEFT
     int16_t delta_y = (int16_t)buf[3] - (int16_t)buf[2]; // DOWN - UP
+
+    float scaling_factor = 1.0f + ((MAX_SPEED - 1.0f) * (MAX_TIME - time_between_interrupts)) / MAX_TIME;
 
     /* Accumulate deltas atomically */
     atomic_add(&data->x_buffer, delta_x);
@@ -174,21 +184,21 @@ static void pimoroni_pim447_work_handler(struct k_work *work) {
     if (delta_x != 0 || delta_y != 0) {
         /* Report relative X movement */
         if (delta_x != 0) {
-            ret = input_report_rel(data->dev, INPUT_REL_X, delta_x, true, K_NO_WAIT);
+            ret = input_report_rel(data->dev, INPUT_REL_X, (int)(delta_x * scaling_factor), true, K_NO_WAIT);
             if (ret) {
                 LOG_ERR("Failed to report delta_x: %d", ret);
             } else {
-                LOG_DBG("Reported delta_x: %d", delta_x);
+                LOG_DBG("Reported delta_x: %d", (int)(delta_x * scaling_factor));
             }
         }
 
         /* Report relative Y movement */
         if (delta_y != 0) {
-            ret = input_report_rel(data->dev, INPUT_REL_Y, delta_y, true, K_NO_WAIT);
+            ret = input_report_rel(data->dev, INPUT_REL_Y, (int)(delta_y * scaling_factor), true, K_NO_WAIT);
             if (ret) {
                 LOG_ERR("Failed to report delta_y: %d", ret);
             } else {
-                LOG_DBG("Reported delta_y: %d", delta_y);
+                LOG_DBG("Reported delta_y: %d", (int)(delta_y * scaling_factor));
             }
         }
     }
@@ -221,6 +231,12 @@ static void pimoroni_pim447_work_handler(struct k_work *work) {
 static void pimoroni_pim447_gpio_callback(const struct device *port, struct gpio_callback *cb, gpio_port_pins_t pins) {
     struct pimoroni_pim447_data *data = CONTAINER_OF(cb, struct pimoroni_pim447_data, int_gpio_cb);
 
+    uint32_t current_time = k_uptime_get();
+
+    k_mutex_lock(&data->data_lock, K_NO_WAIT);
+    data->previous_interrupt_time = data->last_interrupt_time;
+    data->last_interrupt_time = current_time;
+    k_mutex_unlock(&data->data_lock);
 
     /* Schedule the work item to handle the interrupt in thread context */
     k_work_submit(&data->irq_work);

@@ -52,6 +52,9 @@ struct pimoroni_pim447_data {
     bool sw_pressed_prev;
     atomic_t x_buffer;
     atomic_t y_buffer;
+    uint32_t last_interrupt_time;
+    uint32_t previous_interrupt_time;
+
 };
 
 
