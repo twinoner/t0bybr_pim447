@@ -162,10 +162,6 @@ static void pimoroni_pim447_work_handler(struct k_work *work) {
         return;
     }
 
-    /* Calculate deltas */
-    int16_t delta_x = (int16_t)buf[1] - (int16_t)buf[0]; // RIGHT - LEFT
-    int16_t delta_y = (int16_t)buf[3] - (int16_t)buf[2]; // DOWN - UP
-
 
     /* Calculate deltas */
     int16_t delta_x = (int16_t)buf[1] - (int16_t)buf[0]; // RIGHT - LEFT
