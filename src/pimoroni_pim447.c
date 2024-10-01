@@ -20,8 +20,8 @@ LOG_MODULE_REGISTER(zmk_pimoroni_pim447, LOG_LEVEL_DBG);
 #define TRACKBALL_POLL_INTERVAL_MS 20 // Approximately 1/50 second
 #define HUE_INCREMENT_FACTOR 1.0f
 
-#define MAX_SPEED 200
-#define MAX_TIME 50
+#define MAX_SPEED 10
+#define MAX_TIME 20
 
 /* Forward declaration of functions */
 // static void pimoroni_pim447_periodic_work_handler(struct k_work *work);
@@ -174,7 +174,14 @@ static void pimoroni_pim447_work_handler(struct k_work *work) {
     int16_t delta_x = (int16_t)buf[1] - (int16_t)buf[0]; // RIGHT - LEFT
     int16_t delta_y = (int16_t)buf[3] - (int16_t)buf[2]; // DOWN - UP
 
-    float scaling_factor = 1.0f + ((MAX_SPEED - 1.0f) * (MAX_TIME - time_between_interrupts)) / MAX_TIME;
+    // float scaling_factor = 1.0f + ((MAX_SPEED - 1.0f) * (MAX_TIME - time_between_interrupts)) / MAX_TIME;
+
+    float scaling_factor = 1.0f; 
+    if (time_diff < MAX_TIME) {
+        // Exponential scaling calculation
+        float exponent = -3.0f * (float)time_diff / MAX_TIME; // Adjust -3.0f for desired curve
+        scaling_factor = 1.0f + (MAX_SPEED - 1.0f) * expf(exponent); 
+    }
 
     /* Accumulate deltas atomically */
     atomic_add(&data->x_buffer, delta_x);
