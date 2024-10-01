@@ -52,6 +52,9 @@ struct pimoroni_pim447_data {
     float hue;
     bool sw_pressed;
     bool sw_pressed_prev;
+
+    uint32_t last_interrupt_time;
+    uint32_t previous_interrupt_time;
 };
 
 

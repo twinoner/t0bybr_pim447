@@ -150,6 +150,13 @@ static void pimoroni_pim447_work_handler(struct k_work *work) {
     uint8_t buf[5];
     int ret;
 
+        /* Calculate time between interrupts */
+    uint32_t time_between_interrupts = data->last_interrupt_time - data->previous_interrupt_time;
+
+    /* Log the time between interrupts */
+    LOG_INF("Time between interrupts: %u ms", time_between_interrupts);
+
+
     /* Read movement data and switch state */
     ret = i2c_burst_read_dt(&config->i2c, REG_LEFT, buf, 5);
     if (ret) {
@@ -190,6 +197,12 @@ static void pimoroni_pim447_work_handler(struct k_work *work) {
 /* GPIO callback function */
 static void pimoroni_pim447_gpio_callback(const struct device *port, struct gpio_callback *cb, gpio_port_pins_t pins) {
     struct pimoroni_pim447_data *data = CONTAINER_OF(cb, struct pimoroni_pim447_data, int_gpio_cb);
+
+    /* Record the timestamp of the interrupt */
+    uint32_t current_time = k_uptime_get();
+    data->previous_interrupt_time = data->last_interrupt_time;
+    data->last_interrupt_time = current_time;
+
 
     /* Schedule the work item to handle the interrupt in thread context */
     k_work_submit(&data->irq_work);
