@@ -20,7 +20,7 @@ LOG_MODULE_REGISTER(zmk_pimoroni_pim447, LOG_LEVEL_DBG);
 #define HUE_INCREMENT_FACTOR 1.0f
 
 /* Forward declaration of functions */
-static void pimoroni_pim447_periodic_work_handler(struct k_work *work);
+// static void pimoroni_pim447_periodic_work_handler(struct k_work *work);
 static void pimoroni_pim447_gpio_callback(const struct device *port, struct gpio_callback *cb, gpio_port_pins_t pins);
 static int pimoroni_pim447_enable_interrupt(const struct pimoroni_pim447_config *config, bool enable);
 static void activate_automouse_layer();
@@ -55,94 +55,94 @@ static int16_t convert_speed(int16_t value)
     return value;
 }
 
-/* Periodic work handler function */
-static void pimoroni_pim447_periodic_work_handler(struct k_work *work) {
-    struct k_work_delayable *dwork = k_work_delayable_from_work(work);
-    struct pimoroni_pim447_data *data = CONTAINER_OF(dwork, struct pimoroni_pim447_data, periodic_work);
-    const struct device *dev = data->dev;
-    int16_t delta_x, delta_y;
-    bool sw_pressed;
-    int err;
+// /* Periodic work handler function */
+// static void pimoroni_pim447_periodic_work_handler(struct k_work *work) {
+//     struct k_work_delayable *dwork = k_work_delayable_from_work(work);
+//     struct pimoroni_pim447_data *data = CONTAINER_OF(dwork, struct pimoroni_pim447_data, periodic_work);
+//     const struct device *dev = data->dev;
+//     int16_t delta_x, delta_y;
+//     bool sw_pressed;
+//     int err;
 
-    k_mutex_lock(&data->data_lock, K_NO_WAIT);
+//     k_mutex_lock(&data->data_lock, K_NO_WAIT);
 
-    /* Copy and reset accumulated data */
-    delta_x = data->delta_x;
-    delta_y = data->delta_y;
-    data->delta_x = 0;
-    data->delta_y = 0;
+//     /* Copy and reset accumulated data */
+//     delta_x = data->delta_x;
+//     delta_y = data->delta_y;
+//     data->delta_x = 0;
+//     data->delta_y = 0;
 
-    /* Get switch state */
-    sw_pressed = data->sw_pressed;
+//     /* Get switch state */
+//     sw_pressed = data->sw_pressed;
 
-    delta_x = convert_speed(delta_x);
-    delta_y = convert_speed(delta_y);
+//     delta_x = convert_speed(delta_x);
+//     delta_y = convert_speed(delta_y);
 
-    k_mutex_unlock(&data->data_lock);
+//     k_mutex_unlock(&data->data_lock);
 
-    float speed = 0.0f;
+//     float speed = 0.0f;
 
-    if (delta_x > 0 ||  delta_y > 0) {
-        // Calculate movement speed
-        speed = sqrtf((float)(delta_x * delta_x + delta_y * delta_y));
-    }
+//     if (delta_x > 0 ||  delta_y > 0) {
+//         // Calculate movement speed
+//         speed = sqrtf((float)(delta_x * delta_x + delta_y * delta_y));
+//     }
 
-    /* Report relative X movement */
-    if (delta_x != 0) {
-        err = input_report_rel(dev, INPUT_REL_X, delta_x, true, K_NO_WAIT);
-        if (err) {
-            LOG_ERR("Failed to report delta_x: %d", err);
-        } else {
-            LOG_DBG("Reported delta_x: %d", delta_x);
+//     /* Report relative X movement */
+//     if (delta_x != 0) {
+//         err = input_report_rel(dev, INPUT_REL_X, delta_x, true, K_NO_WAIT);
+//         if (err) {
+//             LOG_ERR("Failed to report delta_x: %d", err);
+//         } else {
+//             LOG_DBG("Reported delta_x: %d", delta_x);
 
-        }
-    }
+//         }
+//     }
 
-    /* Report relative Y movement */
-    if (delta_y != 0) {
-        err = input_report_rel(dev, INPUT_REL_Y, delta_y, true, K_NO_WAIT);
-        if (err) {
-            LOG_ERR("Failed to report delta_y: %d", err);
-        } else {
-            LOG_DBG("Reported delta_y: %d", delta_y);
-        }
-    }
+//     /* Report relative Y movement */
+//     if (delta_y != 0) {
+//         err = input_report_rel(dev, INPUT_REL_Y, delta_y, true, K_NO_WAIT);
+//         if (err) {
+//             LOG_ERR("Failed to report delta_y: %d", err);
+//         } else {
+//             LOG_DBG("Reported delta_y: %d", delta_y);
+//         }
+//     }
 
-    /* Report switch state if it changed */
-    if (sw_pressed != data->sw_pressed_prev) {
-        err = input_report_key(dev, INPUT_BTN_0, sw_pressed ? 1 : 0, true, K_NO_WAIT);
-        if (err) {
-            LOG_ERR("Failed to report switch state: %d", err);
-        } else {
-            LOG_DBG("Reported switch state: %d", sw_pressed);
-            data->sw_pressed_prev = sw_pressed;
-        }
-    }
+//     /* Report switch state if it changed */
+//     if (sw_pressed != data->sw_pressed_prev) {
+//         err = input_report_key(dev, INPUT_BTN_0, sw_pressed ? 1 : 0, true, K_NO_WAIT);
+//         if (err) {
+//             LOG_ERR("Failed to report switch state: %d", err);
+//         } else {
+//             LOG_DBG("Reported switch state: %d", sw_pressed);
+//             data->sw_pressed_prev = sw_pressed;
+//         }
+//     }
 
-    // Update LEDs based on movement
-    if (speed > 0) {
-        activate_automouse_layer();
+//     // Update LEDs based on movement
+//     if (speed > 0) {
+//         activate_automouse_layer();
 
-        // Update hue or brightness based on speed
-        data->hue += speed * HUE_INCREMENT_FACTOR;
-        if (data->hue >= 360.0f) {
-            data->hue -= 360.0f;
-        }
+//         // Update hue or brightness based on speed
+//         data->hue += speed * HUE_INCREMENT_FACTOR;
+//         if (data->hue >= 360.0f) {
+//             data->hue -= 360.0f;
+//         }
 
-        // Convert HSV to RGBW
-        uint8_t r, g, b, w;
-        hsv_to_rgbw(data->hue, 1.0f, 1.0f, &r, &g, &b, &w);
+//         // Convert HSV to RGBW
+//         uint8_t r, g, b, w;
+//         hsv_to_rgbw(data->hue, 1.0f, 1.0f, &r, &g, &b, &w);
 
-        // Set the LEDs
-        err = pimoroni_pim447_set_leds(dev, r, g, b, w);
-        if (err) {
-            LOG_ERR("Failed to set LEDs: %d", err);
-        }
-    }
+//         // Set the LEDs
+//         err = pimoroni_pim447_set_leds(dev, r, g, b, w);
+//         if (err) {
+//             LOG_ERR("Failed to set LEDs: %d", err);
+//         }
+//     }
 
-    /* Reschedule the work */
-    k_work_schedule(&data->periodic_work, K_MSEC(TRACKBALL_POLL_INTERVAL_MS)); // Schedule next execution
-}
+//     /* Reschedule the work */
+//     k_work_schedule(&data->periodic_work, K_MSEC(TRACKBALL_POLL_INTERVAL_MS)); // Schedule next execution
+// }
 
 static void pimoroni_pim447_work_handler(struct k_work *work) {
     struct pimoroni_pim447_data *data = CONTAINER_OF(work, struct pimoroni_pim447_data, irq_work);
