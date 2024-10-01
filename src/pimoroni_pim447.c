@@ -242,6 +242,33 @@ static void pimoroni_pim447_work_handler(struct k_work *work) {
         i2c_reg_write_byte_dt(&config->i2c, REG_INT, int_status);
     }
 
+        float speed = 0.0f;
+
+        if (delta_x > 0 ||  delta_y > 0) {
+            // Calculate movement speed
+            speed = sqrtf((float)(delta_x * delta_x + delta_y * delta_y));
+        }
+
+    // Update LEDs based on movement
+    if (speed > 0) {
+         activate_automouse_layer();
+
+            // Update hue or brightness based on speed
+            data->hue += speed * HUE_INCREMENT_FACTOR;
+            if (data->hue >= 360.0f) {
+                data->hue -= 360.0f;
+            }
+
+         // Convert HSV to RGBW
+         uint8_t r, g, b, w;
+         hsv_to_rgbw(data->hue, 1.0f, 1.0f, &r, &g, &b, &w);
+
+         // Set the LEDs
+         err = pimoroni_pim447_set_leds(dev, r, g, b, w);
+         if (err) {
+             LOG_ERR("Failed to set LEDs: %d", err);
+         }
+    }
 
 
 
