@@ -21,7 +21,7 @@ LOG_MODULE_REGISTER(zmk_pimoroni_pim447, LOG_LEVEL_DBG);
 #define HUE_INCREMENT_FACTOR 1.0f
 
 #define MAX_SPEED 15
-#define MAX_TIME 25
+#define MAX_TIME 10
 
 /* Forward declaration of functions */
 // static void pimoroni_pim447_periodic_work_handler(struct k_work *work);
@@ -179,10 +179,9 @@ static void pimoroni_pim447_work_handler(struct k_work *work) {
     float scaling_factor = 1.0f; 
     if (time_between_interrupts < MAX_TIME) {
         // Exponential scaling calculation
-        float exponent = -3.0f * (float)time_between_interrupts / MAX_TIME; // Adjust -3.0f for desired curve
+        float exponent = -2.0f * (float)time_between_interrupts / MAX_TIME; // Adjust -3.0f for desired curve
         scaling_factor = 1.0f + (MAX_SPEED - 1.0f) * expf(exponent); 
     }
-
     /* Accumulate deltas atomically */
     atomic_add(&data->x_buffer, delta_x);
     atomic_add(&data->y_buffer, delta_y);
