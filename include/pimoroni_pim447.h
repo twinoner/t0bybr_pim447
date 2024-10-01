@@ -33,6 +33,11 @@
 #define MSK_INT_TRIGGERED   0b00000001
 #define MSK_INT_OUT_EN      0b00000010
 
+/* Sleep */
+
+#define MSK_CTRL_SLEEP 0b00000001
+#define MSK_CTRL_RESET 0b00000010
+
 #define LED_ANIMATION_INTERVAL_MS 50 // Update interval in milliseconds
 
 struct pimoroni_pim447_config {

@@ -153,6 +153,48 @@ static int16_t convert_speed(int16_t value)
 //     k_work_schedule(&data->periodic_work, K_MSEC(TRACKBALL_POLL_INTERVAL_MS)); // Schedule next execution
 // }
 
+void pim447_enable_sleep(const struct device *dev) {
+    const struct pimoroni_pim447_config *config = data->dev->config;
+    uint8_t ctrl_reg_value;
+
+    // Read the current control register value
+    if (i2c_reg_read_byte_dt(&config->i2c, PIM447_CTRL_REG_ADDR, &ctrl_reg_value) != 0) {
+        LOG_ERR("Failed to read PIM447 control register");
+        return;
+    }
+
+    ctrl_reg_value |= MSK_CTRL_SLEEP; // Set the SLEEP bit
+
+    // Write the modified value back
+    if (i2c_reg_write_byte_dt(&config->i2c, PIM447_CTRL_REG_ADDR, ctrl_reg_value) != 0) {
+        LOG_ERR("Failed to write PIM447 control register");
+        return;
+    }
+
+    LOG_DBG("PIM447 sleep enabled"); 
+}
+
+void pim447_disable_sleep(const struct device *dev) {
+    const struct pimoroni_pim447_config *config = data->dev->config;
+    uint8_t ctrl_reg_value;
+
+    // Read the current control register value
+    if (i2c_reg_read_byte_dt(&config->i2c, PIM447_CTRL_REG_ADDR, &ctrl_reg_value) != 0) {
+        LOG_ERR("Failed to read PIM447 control register");
+        return;
+    }
+
+    ctrl_reg_value &= ~MSK_CTRL_SLEEP; // Clear the SLEEP bit
+
+    // Write the modified value back
+    if (i2c_reg_write_byte_dt(&config->i2c, PIM447_CTRL_REG_ADDR, ctrl_reg_value) != 0) {
+        LOG_ERR("Failed to write PIM447 control register");
+        return;
+    }
+
+    LOG_DBG("PIM447 sleep disabled");
+}
+
 static void pimoroni_pim447_work_handler(struct k_work *work) {
     struct pimoroni_pim447_data *data = CONTAINER_OF(work, struct pimoroni_pim447_data, irq_work);
     const struct pimoroni_pim447_config *config = data->dev->config;
@@ -227,6 +269,19 @@ static void pimoroni_pim447_work_handler(struct k_work *work) {
 
     /* Update switch state */
     data->sw_pressed = (buf[4] & MSK_SWITCH_STATE) != 0;
+
+    /* Report switch state if it changed */
+    if (data->sw_pressed != data->sw_pressed_prev) {
+        // ret = input_report_key(data->dev, INPUT_BTN_0, data->sw_pressed ? 1 : 0, true, K_NO_WAIT);
+
+        pim447_enable_sleep(dev);
+        if (ret) {
+            LOG_ERR("Failed to report switch state: %d", ret);
+        } else {
+            LOG_DBG("Reported switch state: %d", data->sw_pressed);
+            data->sw_pressed_prev = data->sw_pressed;
+        }
+    }
 
     /* Clear movement registers */
     uint8_t zero = 0;
