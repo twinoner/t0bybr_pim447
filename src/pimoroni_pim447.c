@@ -22,6 +22,8 @@ LOG_MODULE_REGISTER(zmk_pimoroni_pim447, LOG_LEVEL_DBG);
 
 #define MAX_SPEED 15
 #define MAX_TIME 10
+#define SMOOTHING_FACTOR 0.5f // Adjust this value between 0.0 and 1.0
+
 
 /* Forward declaration of functions */
 // static void pimoroni_pim447_periodic_work_handler(struct k_work *work);
@@ -186,25 +188,35 @@ static void pimoroni_pim447_work_handler(struct k_work *work) {
     atomic_add(&data->x_buffer, delta_x);
     atomic_add(&data->y_buffer, delta_y);
 
+    int scaled_x_movement = (int)(delta_x * scaling_factor);
+    int scaled_y_movement = (int)(delta_y * scaling_factor);
+
+    // Apply smoothing
+    int smoothed_x = (int)(SMOOTHING_FACTOR * scaled_x_movement + (1.0f - SMOOTHING_FACTOR) * previous_x);
+    int smoothed_y = (int)(SMOOTHING_FACTOR * scaled_y_movement + (1.0f - SMOOTHING_FACTOR) * previous_y);
+
+    previous_x = smoothed_x;
+    previous_y = smoothed_y;
+
     /* Report movement immediately if non-zero */
     if (delta_x != 0 || delta_y != 0) {
         /* Report relative X movement */
         if (delta_x != 0) {
-            ret = input_report_rel(data->dev, INPUT_REL_X, (int)(delta_x * scaling_factor), true, K_NO_WAIT);
+            ret = input_report_rel(data->dev, INPUT_REL_X, smoothed_x, true, K_NO_WAIT);
             if (ret) {
                 LOG_ERR("Failed to report delta_x: %d", ret);
             } else {
-                LOG_DBG("Reported delta_x: %d", (int)(delta_x * scaling_factor));
+                LOG_DBG("Reported delta_x: %d", smoothed_x);
             }
         }
 
         /* Report relative Y movement */
         if (delta_y != 0) {
-            ret = input_report_rel(data->dev, INPUT_REL_Y, (int)(delta_y * scaling_factor), true, K_NO_WAIT);
+            ret = input_report_rel(data->dev, INPUT_REL_Y, smoothed_y, true, K_NO_WAIT);
             if (ret) {
                 LOG_ERR("Failed to report delta_y: %d", ret);
             } else {
-                LOG_DBG("Reported delta_y: %d", (int)(delta_y * scaling_factor));
+                LOG_DBG("Reported delta_y: %d", smoothed_y);
             }
         }
     }
