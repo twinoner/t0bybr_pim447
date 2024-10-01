@@ -16,6 +16,8 @@
 
 LOG_MODULE_REGISTER(zmk_pimoroni_pim447, LOG_LEVEL_DBG);
 
+#define SMOOTHING_CYCLES 15
+
 #define TRACKBALL_POLL_INTERVAL_MS 20 // Approximately 1/50 second
 #define HUE_INCREMENT_FACTOR 1.0f
 
@@ -167,6 +169,17 @@ static void pimoroni_pim447_work_handler(struct k_work *work) {
     /* Accumulate deltas atomically */
     atomic_add(&data->x_buffer, delta_x);
     atomic_add(&data->y_buffer, delta_y);
+
+
+    /* Increase smoothing counter */
+    if (data->smoothing_counter < SMOOTHING_CYCLES) {
+        data->smoothing_counter++;
+    }
+
+    /* Calculate smoothed movement */
+    int16_t smoothed_x = data->x_buffer / data->smoothing_counter;
+    int16_t smoothed_y = data->y_buffer / data->smoothing_counter;
+
 
     /* Clear movement registers */
     uint8_t zero = 0;
