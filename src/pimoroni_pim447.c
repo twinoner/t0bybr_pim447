@@ -154,6 +154,8 @@ static int16_t convert_speed(int16_t value)
 // }
 
 void pim447_enable_sleep(const struct device *dev) {
+    struct pimoroni_pim447_data *data = dev->data;
+
     const struct pimoroni_pim447_config *config = data->dev->config;
     uint8_t ctrl_reg_value;
 
@@ -175,6 +177,8 @@ void pim447_enable_sleep(const struct device *dev) {
 }
 
 void pim447_disable_sleep(const struct device *dev) {
+    struct pimoroni_pim447_data *data = dev->data;
+
     const struct pimoroni_pim447_config *config = data->dev->config;
     uint8_t ctrl_reg_value;
 
