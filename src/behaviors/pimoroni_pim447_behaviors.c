@@ -97,28 +97,28 @@ static int behavior_pim447_binding_pressed(struct zmk_behavior_binding *binding,
             break;
         case PIM447_MOUSE_INC_SMOOTHING_FACTOR:
             PIM447_MOUSE_SMOOTHING_FACTOR += PIM447_SMOOTHING_FACTOR_STEP; // Increment Smoothing factor
-            LOG_DBG("Mouse Smoothing factor increased to %d.%02d", (int)PIM447_MOUSE_SMOOTHING_FACTOR, (int)(PIM447_MOUSE_SMOOTHING_FACTOR * 100) % 100));
+            LOG_DBG("Mouse Smoothing factor increased to %d.%02d", (int)PIM447_MOUSE_SMOOTHING_FACTOR, (int)(PIM447_MOUSE_SMOOTHING_FACTOR * 100) % 100);
             break;
         case PIM447_MOUSE_DEC_SMOOTHING_FACTOR:
             PIM447_MOUSE_SMOOTHING_FACTOR -= PIM447_SMOOTHING_FACTOR_STEP; // Decrement Smoothing factor
-            LOG_DBG("Mouse Smoothing factor decreased to %d.%02d", (int)PIM447_MOUSE_SMOOTHING_FACTOR, (int)(PIM447_MOUSE_SMOOTHING_FACTOR * 100) % 100));
+            LOG_DBG("Mouse Smoothing factor decreased to %d.%02d", (int)PIM447_MOUSE_SMOOTHING_FACTOR, (int)(PIM447_MOUSE_SMOOTHING_FACTOR * 100) % 100);
             break;
         case PIM447_SCROLL_INC_SMOOTHING_FACTOR:
             PIM447_SCROLL_SMOOTHING_FACTOR += PIM447_SMOOTHING_FACTOR_STEP; // Increment Smoothing factor
-            LOG_DBG("Scroll Smoothing factor increased to %d.%02d", (int)PIM447_SCROLL_SMOOTHING_FACTOR, (int)(PIM447_SCROLL_SMOOTHING_FACTOR * 100) % 100));
+            LOG_DBG("Scroll Smoothing factor increased to %d.%02d", (int)PIM447_SCROLL_SMOOTHING_FACTOR, (int)(PIM447_SCROLL_SMOOTHING_FACTOR * 100) % 100);
             break;
         case PIM447_SCROLL_DEC_SMOOTHING_FACTOR:
             PIM447_SCROLL_SMOOTHING_FACTOR -= PIM447_SMOOTHING_FACTOR_STEP; // Decrement Smoothing factor
-            LOG_DBG("Scroll Smoothing factor decreased to %d.%02d", (int)PIM447_SCROLL_SMOOTHING_FACTOR, (int)(PIM447_SCROLL_SMOOTHING_FACTOR * 100) % 100));
+            LOG_DBG("Scroll Smoothing factor decreased to %d.%02d", (int)PIM447_SCROLL_SMOOTHING_FACTOR, (int)(PIM447_SCROLL_SMOOTHING_FACTOR * 100) % 100);
             break;
         case PIM447_INC_HUE_INCREMENT_FACTOR:
             PIM447_HUE_INCREMENT_FACTOR += PIM447_HUE_INCREMENT_FACTOR_STEP; // Increment Smoothing factor
-            LOG_DBG("Hue increment factor increased to %d.%02d", (int)PIM447_HUE_INCREMENT_FACTOR, (int)(PIM447_HUE_INCREMENT_FACTOR * 100) % 100));
+            LOG_DBG("Hue increment factor increased to %d.%02d", (int)PIM447_HUE_INCREMENT_FACTOR, (int)(PIM447_HUE_INCREMENT_FACTOR * 100) % 100);
             break;
         case PIM447_DEC_HUE_INCREMENT_FACTOR:
             if (PIM447_HUE_INCREMENT_FACTOR > 0.1f) {
                 PIM447_HUE_INCREMENT_FACTOR -= PIM447_HUE_INCREMENT_FACTOR_STEP; // Decrement Smoothing factor
-                LOG_DBG("Hue increment factor decreased to %d.%02d", (int)PIM447_HUE_INCREMENT_FACTOR, (int)(PIM447_HUE_INCREMENT_FACTOR * 100) % 100));
+                LOG_DBG("Hue increment factor decreased to %d.%02d", (int)PIM447_HUE_INCREMENT_FACTOR, (int)(PIM447_HUE_INCREMENT_FACTOR * 100) % 100);
             }
             break;
         case PIM447_ENABLE_SLEEP:
