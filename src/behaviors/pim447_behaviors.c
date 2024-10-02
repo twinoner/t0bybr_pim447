@@ -16,7 +16,7 @@
 #include <zmk/keymap.h>
 #include <zephyr/settings/settings.h>
 
-LOG_MODULE_DECLARE(zmk_pimoroni_pim447, CONFIG_ZMK_LOG_LEVEL);
+LOG_MODULE_DECLARE(zmk_pim447_behaviors, CONFIG_ZMK_LOG_LEVEL);
 
 #include "pimoroni_pim447.h"
 #include "dt-bindings/pim447_behaviors.h"
