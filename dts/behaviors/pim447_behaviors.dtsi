@@ -1,6 +1,6 @@
 / {
     behaviors {
-        /omit-if-no-ref/ pim447: zmk_pim447_behaviors_0 {
+        pim447: zmk_pim447_behaviors {
             compatible = "zmk,pim447-behaviors";
             #binding-cells = <1>;
         };
