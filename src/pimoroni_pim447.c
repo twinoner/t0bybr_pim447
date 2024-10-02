@@ -15,13 +15,13 @@
 
 LOG_MODULE_REGISTER(zmk_pimoroni_pim447, LOG_LEVEL_DBG);
 
-volatile uint8_t PIM447_MOUSE_MAX_SPEED = 20;
-volatile uint8_t PIM447_MOUSE_MAX_TIME = 10;
-volatile float PIM447_MOUSE_SMOOTHING_FACTOR = 0.5f;
-volatile uint8_t PIM447_SCROLL_MAX_SPEED = 10;
-volatile uint8_t PIM447_SCROLL_MAX_TIME = 10;
-volatile float PIM447_SCROLL_SMOOTHING_FACTOR = 0.5f;
-volatile float PIM447_HUE_INCREMENT_FACTOR = 1.0f;
+volatile uint8_t PIM447_MOUSE_MAX_SPEED = 25;
+volatile uint8_t PIM447_MOUSE_MAX_TIME = 5;
+volatile float PIM447_MOUSE_SMOOTHING_FACTOR = 1.3f;
+volatile uint8_t PIM447_SCROLL_MAX_SPEED = 1;
+volatile uint8_t PIM447_SCROLL_MAX_TIME = 1;
+volatile float PIM447_SCROLL_SMOOTHING_FACTOR =     0.5f;
+volatile float PIM447_HUE_INCREMENT_FACTOR = 0.3f;
 
 enum pim447_mode {
     PIM447_MODE_MOUSE,
@@ -200,16 +200,14 @@ static void pimoroni_pim447_work_handler(struct k_work *work) {
 
     /* Report switch state if it changed */
     if (data->sw_pressed != data->sw_pressed_prev) {
-        if (data->sw_pressed) {  // Only trigger on press (transition to pressed)
-            ret = input_report_key(data->dev, INPUT_BTN_0, data->sw_pressed ? 1 : 0, true, K_NO_WAIT);
-            if (ret) {
-                LOG_ERR("Failed to report key");
-            } else {
-                LOG_DBG("Reported key");
-            }
-
-            LOG_DBG("Reported switch state: %d", data->sw_pressed);
+        ret = input_report_key(data->dev, INPUT_BTN_0, data->sw_pressed ? 1 : 0, true, K_NO_WAIT);
+        if (ret) {
+            LOG_ERR("Failed to report key");
+        } else {
+            LOG_DBG("Reported key");
         }
+
+        LOG_DBG("Reported switch state: %d", data->sw_pressed);
 
         data->sw_pressed_prev = data->sw_pressed;
     }
