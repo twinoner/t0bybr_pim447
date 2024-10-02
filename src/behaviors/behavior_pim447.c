@@ -42,7 +42,11 @@ struct k_mutex variable_mutex;
 /* Behavior function */
 static int behavior_pim447_binding_pressed(struct zmk_behavior_binding *binding,
                                                      struct zmk_behavior_binding_event event)
-{
+{   const struct device *dev = device_get_binding(binding->behavior_dev); 
+    if (!dev) {
+        LOG_ERR("Device not found");
+        return -ENODEV;
+    }
     uint32_t action = binding->param1;  // Access the action parameter
 
     k_mutex_lock(&variable_mutex, K_FOREVER);
@@ -118,10 +122,10 @@ static int behavior_pim447_binding_pressed(struct zmk_behavior_binding *binding,
             pim447_toggle_mode();
             break;
         case PIM447_ENABLE_SLEEP:
-            pim447_enable_sleep();
+            pim447_enable_sleep(dev);
             break;
         case PIM447_DISABLE_SLEEP:
-            pim447_disable_sleep();
+            pim447_disable_sleep(dev);
             break;
         default:
             LOG_WRN("Unknown trackball adjustment action: %d", action);
