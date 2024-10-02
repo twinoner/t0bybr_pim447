@@ -61,6 +61,8 @@ struct pimoroni_pim447_data {
     uint32_t previous_interrupt_time;
     int previous_x; 
     int previous_y;
+    int smoothed_x;
+    int smoothed_y;
 
 };
 

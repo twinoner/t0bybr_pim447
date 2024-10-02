@@ -118,8 +118,8 @@ static void pim447_process_movement(struct pimoroni_pim447_data *data, int delta
     int scaled_y_movement = (int)(delta_y * scaling_factor);
 
     // Apply smoothing
-    int smoothed_x = (int)(smoothing_factor * scaled_x_movement + (1.0f - smoothing_factor) * previous_x);
-    int smoothed_y = (int)(smoothing_factor * scaled_y_movement + (1.0f - smoothing_factor) * previous_y);
+    data->smoothed_x = (int)(smoothing_factor * scaled_x_movement + (1.0f - smoothing_factor) * previous_x);
+    data->smoothed_y = (int)(smoothing_factor * scaled_y_movement + (1.0f - smoothing_factor) * previous_y);
 
     data->previous_x = smoothed_x;
     data->previous_y = smoothed_y;
@@ -160,21 +160,21 @@ static void pimoroni_pim447_work_handler(struct k_work *work) {
             
             /* Report relative X movement */
             if (delta_x != 0) {
-                ret = input_report_rel(data->dev, INPUT_REL_X, smoothed_x, true, K_NO_WAIT);
+                ret = input_report_rel(data->dev, INPUT_REL_X, data->smoothed_x, true, K_NO_WAIT);
                 if (ret) {
                     LOG_ERR("Failed to report delta_x: %d", ret);
                 } else {
-                    LOG_DBG("Reported delta_x: %d", smoothed_x);
+                    LOG_DBG("Reported delta_x: %d", data->smoothed_x);
                 }
             }
 
             /* Report relative Y movement */
             if (delta_y != 0) {
-                ret = input_report_rel(data->dev, INPUT_REL_Y, smoothed_y, true, K_NO_WAIT);
+                ret = input_report_rel(data->dev, INPUT_REL_Y, data->smoothed_y, true, K_NO_WAIT);
                 if (ret) {
                     LOG_ERR("Failed to report delta_y: %d", ret);
                 } else {
-                    LOG_DBG("Reported delta_y: %d", smoothed_y);
+                    LOG_DBG("Reported delta_y: %d", data->smoothed_y);
                 }
             }
         } else if (current_mode == PIM447_MODE_SCROLL) {
@@ -182,21 +182,21 @@ static void pimoroni_pim447_work_handler(struct k_work *work) {
             
             /* Report relative X movement */
             if (delta_x != 0) {
-                ret = input_report_rel(data->dev, INPUT_REL_WHEEL, smoothed_x, true, K_NO_WAIT);
+                ret = input_report_rel(data->dev, INPUT_REL_WHEEL, data->smoothed_x, true, K_NO_WAIT);
                 if (ret) {
                     LOG_ERR("Failed to report delta_x: %d", ret);
                 } else {
-                    LOG_DBG("Reported delta_x: %d", smoothed_x);
+                    LOG_DBG("Reported delta_x: %d", data->smoothed_x);
                 }
             }
 
             /* Report relative Y movement */
             if (delta_y != 0) {
-                ret = input_report_rel(data->dev, INPUT_REL_HWHEEL, smoothed_y, true, K_NO_WAIT);
+                ret = input_report_rel(data->dev, INPUT_REL_HWHEEL, data->smoothed_y, true, K_NO_WAIT);
                 if (ret) {
                     LOG_ERR("Failed to report delta_y: %d", ret);
                 } else {
-                    LOG_DBG("Reported delta_y: %d", smoothed_y);
+                    LOG_DBG("Reported delta_y: %d", data->smoothed_y);
                 }
             }
         }
