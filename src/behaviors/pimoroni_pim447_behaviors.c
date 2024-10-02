@@ -121,12 +121,12 @@ static int behavior_pim447_binding_pressed(struct zmk_behavior_binding *binding,
                 LOG_DBG("Hue increment factor decreased to %d.%02d", (int)PIM447_HUE_INCREMENT_FACTOR, (int)(PIM447_HUE_INCREMENT_FACTOR * 100) % 100);
             }
             break;
-        case PIM447_ENABLE_SLEEP:
-            pim447_enable_sleep();
-            break;
-        case PIM447_DISABLE_SLEEP:
-            pim447_disable_sleep();
-            break;
+        // case PIM447_ENABLE_SLEEP:
+        //     pim447_enable_sleep();
+        //     break;
+        // case PIM447_DISABLE_SLEEP:
+        //     pim447_disable_sleep();
+        //     break;
         default:
             LOG_WRN("Unknown trackball adjustment action: %d", action);
             break;
