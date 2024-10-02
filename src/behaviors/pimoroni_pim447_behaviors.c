@@ -14,38 +14,26 @@
 #include <zmk/behavior.h>
 #include <zmk/event_manager.h>
 #include <zmk/keymap.h>
+#include <zephyr/settings/settings.h>
 
-LOG_MODULE_DECLARE(zmk, CONFIG_ZMK_LOG_LEVEL);
+LOG_MODULE_DECLARE(zmk_pimoroni_pim447, CONFIG_ZMK_LOG_LEVEL);
 
+#include "pimoroni_pim447.h"
 #include "dt-bindings/pimoroni_pim447_behaviors.h"
 
 /* Extern variables */
-// extern volatile uint8_t FREQUENCY_THRESHOLD;
-// extern volatile float BASE_SCALE_FACTOR;
-// extern volatile float MAX_SCALE_FACTOR;
-// extern volatile float SMOOTHING_FACTOR;
-// extern volatile uint8_t INTERPOLATION_STEPS;
-// extern volatile float EXPONENTIAL_BASE;
-// extern struct k_mutex variable_mutex;
+extern volatile uint8_t PIM447_MOUSE_MAX_SPEED;
+extern volatile uint8_t PIM447_MOUSE_MAX_TIME;
+extern volatile float PIM447_MOUSE_SMOOTHING_FACTOR;
+extern volatile uint8_t PIM447_SCROLL_MAX_SPEED;
+extern volatile uint8_t PIM447_SCROLL_MAX_TIME;
+extern volatile float PIM447_SCROLL_SMOOTHING_FACTOR;
+extern volatile float PIM447_HUE_INCREMENT_FACTOR;
 
-/* Constants for limits and steps */
-#define BASE_SCALE_STEP 0.1f
-#define FREQUENCY_THRESHOLD_STEP 5
-#define INTERPOLATION_STEPS_STEP 1
-#define EXPONENTIAL_BASE_STEP 0.1f
-#define SMOOTHING_FACTOR_STEP 0.05f
-
-#define BASE_SCALE_MIN 0.1f
-#define BASE_SCALE_MAX 5.0f
-#define FREQUENCY_THRESHOLD_MIN 0
-#define FREQUENCY_THRESHOLD_MAX 255
-#define SMOOTHING_FACTOR_MIN 0.0f
-#define SMOOTHING_FACTOR_MAX 1.0f
-#define INTERPOLATION_STEPS_MIN 1
-#define INTERPOLATION_STEPS_MAX 10
-#define EXPONENTIAL_BASE_MIN 1.1f
-#define EXPONENTIAL_BASE_MAX 2.0f
-
+#define PIM447_MAX_SPEED_STEP 1
+#define PIM447_MAX_TIME_STEP 5
+#define PIM447_SMOOTHING_FACTOR_STEP 0.1f
+#define PIM447_HUE_INCREMENT_FACTOR_STEP 0.1f
 
 /* Configuration and data structures */
 struct behavior_pim447_config {
@@ -60,96 +48,89 @@ struct behavior_pim447_data {
 static int behavior_pim447_binding_pressed(struct zmk_behavior_binding *binding,
                                                      struct zmk_behavior_binding_event event)
 {
-    // uint32_t action = binding->param1;  // Access the action parameter
+    uint32_t action = binding->param1;  // Access the action parameter
 
-    // k_mutex_lock(&variable_mutex, K_FOREVER);
+    k_mutex_lock(&variable_mutex, K_FOREVER);
 
-    // switch (action) {
-    //     case TB_INC_BASE_SCALE:
-    //         BASE_SCALE_FACTOR += BASE_SCALE_STEP;
-    //         if (BASE_SCALE_FACTOR > BASE_SCALE_MAX) {
-    //             BASE_SCALE_FACTOR = BASE_SCALE_MAX;
-    //         }
-    //         LOG_INF("BASE_SCALE_FACTOR increased to %d.%02d", 
-    //                 (int)BASE_SCALE_FACTOR, (int)(BASE_SCALE_FACTOR * 100) % 100);
-    //         break;
-    //     case TB_DEC_BASE_SCALE:
-    //         BASE_SCALE_FACTOR -= BASE_SCALE_STEP;
-    //         if (BASE_SCALE_FACTOR < BASE_SCALE_MIN) {
-    //             BASE_SCALE_FACTOR = BASE_SCALE_MIN;
-    //         }
-    //         LOG_INF("BASE_SCALE_FACTOR decreased to %d.%02d", 
-    //                 (int)BASE_SCALE_FACTOR, (int)(BASE_SCALE_FACTOR * 100) % 100);
-    //         break;
-    //     case TB_INC_FREQUENCY_THRESHOLD:
-    //         FREQUENCY_THRESHOLD += FREQUENCY_THRESHOLD_STEP;
-    //         if (FREQUENCY_THRESHOLD > FREQUENCY_THRESHOLD_MAX) {
-    //             FREQUENCY_THRESHOLD = FREQUENCY_THRESHOLD_MAX;
-    //         }
-    //         LOG_INF("FREQUENCY_THRESHOLD increased to %d", (int)FREQUENCY_THRESHOLD);
-    //         break;
-    //     case TB_DEC_FREQUENCY_THRESHOLD:
-    //         FREQUENCY_THRESHOLD -= FREQUENCY_THRESHOLD_STEP;
-    //         if (FREQUENCY_THRESHOLD < FREQUENCY_THRESHOLD_MIN) {
-    //             FREQUENCY_THRESHOLD = FREQUENCY_THRESHOLD_MIN;
-    //         }
-    //         LOG_INF("FREQUENCY_THRESHOLD decreased to %d", (int)FREQUENCY_THRESHOLD);
-    //         break;
-    //     case TB_INC_SMOOTHING_FACTOR:
-    //         SMOOTHING_FACTOR += SMOOTHING_FACTOR_STEP;
-    //         if (SMOOTHING_FACTOR > SMOOTHING_FACTOR_MAX) {
-    //             SMOOTHING_FACTOR = SMOOTHING_FACTOR_MAX;
-    //         }
-    //         LOG_INF("SMOOTHING_FACTOR increased to %d.%02d",
-    //         (int)SMOOTHING_FACTOR, (int)(SMOOTHING_FACTOR * 100) % 100);
-            
-    //         break;
-    //     case TB_DEC_SMOOTHING_FACTOR:
-    //         SMOOTHING_FACTOR -= SMOOTHING_FACTOR_STEP;
-    //         if (SMOOTHING_FACTOR < SMOOTHING_FACTOR_MIN) {
-    //             SMOOTHING_FACTOR = SMOOTHING_FACTOR_MIN;
-    //         }
-    //         LOG_INF("SMOOTHING_FACTOR decreased to %d.%02d",
-    //         (int)SMOOTHING_FACTOR, (int)(SMOOTHING_FACTOR * 100) % 100);
-    //         break;
-    //     case TB_INC_INTERPOLATION_STEPS:
-    //         INTERPOLATION_STEPS += INTERPOLATION_STEPS_STEP;
-    //         if (INTERPOLATION_STEPS > INTERPOLATION_STEPS_MAX) {
-    //             INTERPOLATION_STEPS = INTERPOLATION_STEPS_MAX;
-    //         }
-    //         LOG_INF("INTERPOLATION_STEPS increased to %d.%02d",
-    //         (int)INTERPOLATION_STEPS, (int)(INTERPOLATION_STEPS * 100) % 100);
-    //         break;
-    //     case TB_DEC_INTERPOLATION_STEPS:
-    //         INTERPOLATION_STEPS -= INTERPOLATION_STEPS_STEP;
-    //         if (INTERPOLATION_STEPS < INTERPOLATION_STEPS_MIN) {
-    //             INTERPOLATION_STEPS = INTERPOLATION_STEPS_MIN;
-    //         }
-    //         LOG_INF("INTERPOLATION_STEPS decreased to %d.%02d",
-    //         (int)INTERPOLATION_STEPS, (int)(INTERPOLATION_STEPS * 100) % 100);
-    //         break;
-    //     case TB_INC_EXPONENTIAL_BASE:
-    //         EXPONENTIAL_BASE += EXPONENTIAL_BASE_STEP;
-    //         if (EXPONENTIAL_BASE > EXPONENTIAL_BASE_MAX) {
-    //             EXPONENTIAL_BASE = EXPONENTIAL_BASE_MAX;
-    //         }
-    //         LOG_INF("EXPONENTIAL_BASE increased to %d.%02d",
-    //         (int)EXPONENTIAL_BASE, (int)(EXPONENTIAL_BASE * 100) % 100);
-    //         break;
-    //     case TB_DEC_EXPONENTIAL_BASE:
-    //         EXPONENTIAL_BASE -= EXPONENTIAL_BASE_STEP;
-    //         if (EXPONENTIAL_BASE < EXPONENTIAL_BASE_MIN) {
-    //             EXPONENTIAL_BASE = EXPONENTIAL_BASE_MIN;
-    //         }
-    //         LOG_INF("EXPONENTIAL_BASE decreased to %d.%02d",
-    //         (int)EXPONENTIAL_BASE, (int)(EXPONENTIAL_BASE * 100) % 100);
-    //         break;
-    //     default:
-    //         LOG_WRN("Unknown trackball adjustment action: %d", action);
-    //         break;
-    // }
+    switch (action) {
+        case PIM447_MOUSE_INC_MAX_SPEED:
+            PIM447_MOUSE_MAX_SPEED += PIM447_MAX_SPEED_STEP; // Increment max speed
+            LOG_DBG("Mouse max speed increased to %d", PIM447_MOUSE_MAX_SPEED);
+            break;
+        case PIM447_MOUSE_DEC_MAX_SPEED:
+            if (PIM447_MOUSE_MAX_SPEED > 1) {
+                PIM447_MOUSE_MAX_SPEED -= PIM447_MAX_SPEED_STEP; // Decrement max speed
+                LOG_DBG("Mouse max speed decreased to %d", PIM447_MOUSE_MAX_SPEED);
+            }
+            break;
+        case PIM447_SCROLL_INC_MAX_SPEED:
+            PIM447_SCROLL_MAX_SPEED += PIM447_MAX_SPEED_STEP; // Increment max speed
+            LOG_DBG("Scroll max speed increased to %d", PIM447_SCROLL_MAX_SPEED);
+            break;
+        case PIM447_SCROLL_DEC_MAX_SPEED:
+            if (PIM447_SCROLL_MAX_SPEED > 1) {
+                PIM447_SCROLL_MAX_SPEED -= PIM447_MAX_SPEED_STEP; // Decrement max speed
+                LOG_DBG("Scroll max speed decreased to %d", PIM447_SCROLL_MAX_SPEED);
+            }
+            break;
+        case PIM447_MOUSE_INC_MAX_TIME:
+            PIM447_MOUSE_MAX_TIME += PIM447_MAX_TIME_STEP; // Increment max TIME
+            LOG_DBG("Mouse max time increased to %d", PIM447_MOUSE_MAX_TIME);
+            break;
+        case PIM447_MOUSE_DEC_MAX_TIME:
+            if (PIM447_MOUSE_MAX_TIME > 5) {
+                PIM447_MOUSE_MAX_TIME -= PIM447_MAX_TIME_STEP; // Decrement max TIME
+                LOG_DBG("Mouse max time decreased to %d", PIM447_MOUSE_MAX_TIME);
+            }
+            break;
+        case PIM447_SCROLL_INC_MAX_TIME:
+            PIM447_MOUSE_MAX_TIME += PIM447_MAX_TIME_STEP; // Increment max TIME
+            LOG_DBG("Scroll max time increased to %d", PIM447_MOUSE_MAX_TIME);
+            break;
+        case PIM447_SCROLL_DEC_MAX_TIME:
+            if (PIM447_MOUSE_MAX_TIME > 5) {
+                PIM447_MOUSE_MAX_TIME -= PIM447_MAX_TIME_STEP; // Decrement max TIME
+                LOG_DBG("Scroll max time decreased to %d", PIM447_MOUSE_MAX_TIME);
+            }
+            break;
+        case PIM447_MOUSE_INC_SMOOTHING_FACTOR:
+            PIM447_MOUSE_SMOOTHING_FACTOR += PIM447_SMOOTHING_FACTOR_STEP; // Increment Smoothing factor
+            LOG_DBG("Mouse Smoothing factor increased to %d.%02d", (int)PIM447_MOUSE_SMOOTHING_FACTOR, (int)(PIM447_MOUSE_SMOOTHING_FACTOR * 100) % 100));
+            break;
+        case PIM447_MOUSE_DEC_SMOOTHING_FACTOR:
+            PIM447_MOUSE_SMOOTHING_FACTOR -= PIM447_SMOOTHING_FACTOR_STEP; // Decrement Smoothing factor
+            LOG_DBG("Mouse Smoothing factor decreased to %d.%02d", (int)PIM447_MOUSE_SMOOTHING_FACTOR, (int)(PIM447_MOUSE_SMOOTHING_FACTOR * 100) % 100));
+            break;
+        case PIM447_SCROLL_INC_SMOOTHING_FACTOR:
+            PIM447_SCROLL_SMOOTHING_FACTOR += PIM447_SMOOTHING_FACTOR_STEP; // Increment Smoothing factor
+            LOG_DBG("Scroll Smoothing factor increased to %d.%02d", (int)PIM447_SCROLL_SMOOTHING_FACTOR, (int)(PIM447_SCROLL_SMOOTHING_FACTOR * 100) % 100));
+            break;
+        case PIM447_SCROLL_DEC_SMOOTHING_FACTOR:
+            PIM447_SCROLL_SMOOTHING_FACTOR -= PIM447_SMOOTHING_FACTOR_STEP; // Decrement Smoothing factor
+            LOG_DBG("Scroll Smoothing factor decreased to %d.%02d", (int)PIM447_SCROLL_SMOOTHING_FACTOR, (int)(PIM447_SCROLL_SMOOTHING_FACTOR * 100) % 100));
+            break;
+        case PIM447_INC_HUE_INCREMENT_FACTOR:
+            PIM447_HUE_INCREMENT_FACTOR += PIM447_HUE_INCREMENT_FACTOR_STEP; // Increment Smoothing factor
+            LOG_DBG("Hue increment factor increased to %d.%02d", (int)PIM447_HUE_INCREMENT_FACTOR, (int)(PIM447_HUE_INCREMENT_FACTOR * 100) % 100));
+            break;
+        case PIM447_DEC_HUE_INCREMENT_FACTOR:
+            if (PIM447_HUE_INCREMENT_FACTOR > 0.1f) {
+                PIM447_HUE_INCREMENT_FACTOR -= PIM447_HUE_INCREMENT_FACTOR_STEP; // Decrement Smoothing factor
+                LOG_DBG("Hue increment factor decreased to %d.%02d", (int)PIM447_HUE_INCREMENT_FACTOR, (int)(PIM447_HUE_INCREMENT_FACTOR * 100) % 100));
+            }
+            break;
+        case PIM447_ENABLE_SLEEP:
+            pim447_enable_sleep();
+            break;
+        case PIM447_DISABLE_SLEEP:
+            pim447_disable_sleep();
+            break;
+        default:
+            LOG_WRN("Unknown trackball adjustment action: %d", action);
+            break;
+    }
 
-    // k_mutex_unlock(&variable_mutex);
+    k_mutex_unlock(&variable_mutex);
 
     return 0;
 }

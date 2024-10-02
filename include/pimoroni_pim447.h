@@ -63,8 +63,9 @@ struct pimoroni_pim447_data {
     int previous_y;
     int smoothed_x;
     int smoothed_y;
-
 };
 
+void pim447_enable_sleep(const struct device *dev);
+void pim447_disable_sleep(const struct device *dev);
 
 #endif /* PIMORONI_PIM447_H */

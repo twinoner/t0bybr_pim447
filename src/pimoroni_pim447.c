@@ -13,20 +13,15 @@
 #include "pimoroni_pim447.h"
 #include "pimoroni_pim447_led.h"  // For function declarations
 
-
 LOG_MODULE_REGISTER(zmk_pimoroni_pim447, LOG_LEVEL_DBG);
 
-
-#define HUE_INCREMENT_FACTOR 1.0f
-
-#define PIM447_MOUSE_MAX_SPEED 20
-#define PIM447_MOUSE_MAX_TIME 10
-#define PIM447_MOUSE_SMOOTHING_FACTOR 0.5f // Adjust this value between 0.0 and 1.0
-
-#define PIM447_SCROLL_MAX_SPEED 10
-#define PIM447_SCROLL_MAX_TIME 10
-#define PIM447_SCROLL_SMOOTHING_FACTOR 0.5f // Adjust this value between 0.0 and 1.0
-
+volatile uint8_t PIM447_MOUSE_MAX_SPEED = 20;
+volatile uint8_t PIM447_MOUSE_MAX_TIME = 10;
+volatile float PIM447_MOUSE_SMOOTHING_FACTOR = 0.5f;
+volatile uint8_t PIM447_SCROLL_MAX_SPEED = 10;
+volatile uint8_t PIM447_SCROLL_MAX_TIME = 10;
+volatile float PIM447_SCROLL_SMOOTHING_FACTOR = 0.5f;
+volatile float PIM447_HUE_INCREMENT_FACTOR = 1.0f;
 
 enum pim447_mode {
     PIM447_MODE_MOUSE,
@@ -36,13 +31,12 @@ enum pim447_mode {
 static enum pim447_mode current_mode = PIM447_MODE_MOUSE;
 
 /* Forward declaration of functions */
-// static void pimoroni_pim447_periodic_work_handler(struct k_work *work);
 static void pimoroni_pim447_gpio_callback(const struct device *port, struct gpio_callback *cb, gpio_port_pins_t pins);
 static int pimoroni_pim447_enable_interrupt(const struct pimoroni_pim447_config *config, bool enable);
 static void activate_automouse_layer();
 static void deactivate_automouse_layer(struct k_timer *timer);
 
-static int previous_x = 0; 
+static int previous_x = 0;
 static int previous_y = 0;
 
 void pim447_enable_sleep(const struct device *dev) {
@@ -123,7 +117,6 @@ static void pim447_process_movement(struct pimoroni_pim447_data *data, int delta
 
     data->previous_x = data->smoothed_x;
     data->previous_y = data->smoothed_y;
-
 }
 
 static void pimoroni_pim447_work_handler(struct k_work *work) {
@@ -243,7 +236,7 @@ static void pimoroni_pim447_work_handler(struct k_work *work) {
          activate_automouse_layer();
 
             // Update hue or brightness based on speed
-            data->hue += speed * HUE_INCREMENT_FACTOR;
+            data->hue += speed * PIM447_HUE_INCREMENT_FACTOR;
             if (data->hue >= 360.0f) {
                 data->hue -= 360.0f;
             }
