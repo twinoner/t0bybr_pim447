@@ -154,7 +154,7 @@ static void pimoroni_pim447_work_handler(struct k_work *work) {
                     LOG_DBG("Reported delta_x: %d", smoothed_x);
                 }
             } else if (current_mode == PIM447_MODE_SCROLL) {
-                ret = input_report_rel(data->dev, INPUT_REL_HWHEEL, smoothed_x, true, K_NO_WAIT);
+                ret = input_report_rel(data->dev, INPUT_REL_WHEEL, smoothed_x, true, K_NO_WAIT);
                 if (ret) {
                     LOG_ERR("Failed to report delta_x: %d", ret);
                 } else {
@@ -174,7 +174,7 @@ static void pimoroni_pim447_work_handler(struct k_work *work) {
                     LOG_DBG("Reported delta_y: %d", smoothed_y);
                 }
             } else if (current_mode == PIM447_MODE_SCROLL) {
-                ret = input_report_rel(data->dev, INPUT_REL_WHEEL, smoothed_y, true, K_NO_WAIT);
+                ret = input_report_rel(data->dev, INPUT_REL_HWHEEL, smoothed_y, true, K_NO_WAIT);
                 if (ret) {
                     LOG_ERR("Failed to report delta_y: %d", ret);
                 } else {
