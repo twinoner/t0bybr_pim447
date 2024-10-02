@@ -8,6 +8,7 @@
 #include <zephyr/drivers/gpio.h>
 #include <zephyr/kernel.h>
 #include <zephyr/logging/log.h>
+#include <zmk/events/activity_state_changed.h>
 #include <math.h>
 
 #include "pimoroni_pim447.h"
@@ -59,6 +60,8 @@ void pim447_enable_sleep(const struct device *dev) {
         return;
     }
 
+    pimoroni_pim447_set_leds(dev, 0, 0, 0, 0); // Turn off LEDs
+
     LOG_DBG("PIM447 sleep enabled"); 
 }
 
@@ -82,6 +85,8 @@ void pim447_disable_sleep(const struct device *dev) {
         return;
     }
 
+    pimoroni_pim447_set_leds(dev, 255, 0, 0, 0); // Turn on LEDs
+
     LOG_DBG("PIM447 sleep disabled");
 }
 
@@ -90,6 +95,26 @@ void pim447_toggle_mode(void) {
     // Optional: Add logging or LED indication here to show the current mode
     LOG_DBG("PIM447 mode switched to %s", (current_mode == PIM447_MODE_MOUSE) ? "MOUSE" : "SCROLL");
 }
+
+// Event handler for activity state changes
+static int activity_state_changed_handler(const zmk_event_t *eh) {
+    struct pimoroni_pim447_data *data = CONTAINER_OF(work, struct pimoroni_pim447_data, irq_work);
+    const struct device *dev = data->dev;
+    struct zmk_activity_state_changed *ev = as_zmk_activity_state_changed(eh);
+
+    if (ev->state == ZMK_ACTIVITY_IDLE) {
+        pim447_enable_sleep(dev);
+    }
+
+    if (ev->state != ZMK_ACTIVITY_IDLE) {
+        pim447_disable_sleep(dev);
+    }
+
+    return 0;
+}
+
+ZMK_LISTENER(idle_listener, activity_state_changed_handler);
+ZMK_SUBSCRIPTION(idle_listener, zmk_activity_state_changed);
 
 static void pim447_process_movement(struct pimoroni_pim447_data *data, int delta_x, int delta_y, uint32_t time_between_interrupts, int max_speed, int max_time, float smoothing_factor) {
     float scaling_factor = 1.0f;
