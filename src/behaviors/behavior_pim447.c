@@ -3,7 +3,7 @@
 /* SPDX-License-Identifier: MIT */
 
 /* Define the driver compatibility */
-#define DT_DRV_COMPAT zmk_pim447_behaviors
+#define DT_DRV_COMPAT zmk_behavior_pim447
 
 #include <zephyr/kernel.h>
 #include <drivers/behavior.h>
@@ -16,10 +16,10 @@
 #include <zmk/keymap.h>
 #include <zephyr/settings/settings.h>
 
-LOG_MODULE_REGISTER(zmk_pim447_behaviors, CONFIG_ZMK_LOG_LEVEL);
+LOG_MODULE_REGISTER(zmk_behavior_pim447, CONFIG_ZMK_LOG_LEVEL);
 
 #include "pimoroni_pim447.h"
-#include "dt-bindings/pim447_behaviors.h"
+#include "dt-bindings/behavior_pim447.h"
 
 /* Extern variables */
 extern volatile uint8_t PIM447_MOUSE_MAX_SPEED;
@@ -37,14 +37,7 @@ extern volatile float PIM447_HUE_INCREMENT_FACTOR;
 
 struct k_mutex variable_mutex;
 
-/* Configuration and data structures */
-struct behavior_pim447_config {
-    // Add any configuration parameters if needed
-};
 
-struct behavior_pim447_data {
-    // Add any runtime data if needed
-};
 
 /* Behavior function */
 static int behavior_pim447_binding_pressed(struct zmk_behavior_binding *binding,
@@ -134,7 +127,7 @@ static int behavior_pim447_binding_pressed(struct zmk_behavior_binding *binding,
 
     k_mutex_unlock(&variable_mutex);
 
-    return 0;
+    return -ENOTSUP;
 }
 
 /* Optionally implement the released function if needed */
@@ -142,13 +135,13 @@ static int behavior_pim447_binding_released(struct zmk_behavior_binding *binding
                                                       struct zmk_behavior_binding_event event)
 {
     // If your behavior needs to handle key releases, implement this function
-    return 0;
+    return ZMK_BEHAVIOR_OPAQUE;
 }
 
 /* Behavior driver API */
 static const struct behavior_driver_api behavior_pim447_driver_api = {
     .binding_pressed = behavior_pim447_binding_pressed,
-    .binding_released = NULL,  // Set to NULL if not used
+    .binding_released = behavior_pim447_binding_released,  // Set to NULL if not used
 };
 
 /* Initialization function (if needed) */
@@ -161,19 +154,12 @@ static int behavior_pim447_init(const struct device *dev)
     return 0;
 }
 
-/* Device instance definition */
-static struct behavior_pim447_data behavior_pim447_data;
-
-static const struct behavior_pim447_config behavior_pim447_config = {
-    // Initialize configuration if needed
-};
-
 /* Register the behavior using BEHAVIOR_DT_INST_DEFINE */
 BEHAVIOR_DT_INST_DEFINE(0,                                     // Instance number
                         behavior_pim447_init,        // Initialization function
                         NULL,                                  // PM control function
-                        &behavior_pim447_data,       // Data pointer
-                        &behavior_pim447_config,     // Configuration pointer
+                        NULL,       // Data pointer
+                        NULL,     // Configuration pointer
                         POST_KERNEL,                           // Initialization level
                         CONFIG_KERNEL_INIT_PRIORITY_DEFAULT,   // Initialization priority
                         &behavior_pim447_driver_api  // Driver API pointer
