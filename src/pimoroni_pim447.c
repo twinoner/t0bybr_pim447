@@ -19,9 +19,13 @@ LOG_MODULE_REGISTER(zmk_pimoroni_pim447, LOG_LEVEL_DBG);
 
 #define HUE_INCREMENT_FACTOR 1.0f
 
-#define MAX_SPEED 15
-#define MAX_TIME 10
-#define SMOOTHING_FACTOR 0.5f // Adjust this value between 0.0 and 1.0
+#define PIM447_MOUSE_MAX_SPEED 20
+#define PIM447_MOUSE_MAX_TIME 10
+#define PIM447_MOUSE_SMOOTHING_FACTOR 0.5f // Adjust this value between 0.0 and 1.0
+
+#define PIM447_SCROLL_MAX_SPEED 10
+#define PIM447_SCROLL_MAX_TIME 10
+#define PIM447_SCROLL_SMOOTHING_FACTOR 0.5f // Adjust this value between 0.0 and 1.0
 
 
 enum pim447_mode {
@@ -93,6 +97,35 @@ void pim447_toggle_mode(void) {
     LOG_DBG("PIM447 mode switched to %s", (current_mode == PIM447_MODE_MOUSE) ? "MOUSE" : "SCROLL");
 }
 
+static void pim447_process_movement(struct pimoroni_pim447_data *data, int delta_x, int delta_y, uint32_t time_between_interrupts, int max_speed, int max_time, float smoothing_factor) {
+    float scaling_factor = 1.0f;
+    if (time_between_interrupts < max_time) {
+        // Exponential scaling calculation
+        float exponent = -3.0f * (float)time_between_interrupts / max_time; // Adjust -3.0f for desired curve
+        scaling_factor = 1.0f + (max_speed - 1.0f) * expf(exponent); 
+    }
+
+    // Apply scaling based on mode
+    if (current_mode == PIM447_MODE_SCROLL) {
+        scaling_factor *= 2.5f; // Example: Increase scaling for scroll mode
+    }
+
+    /* Accumulate deltas atomically */
+    atomic_add(&data->x_buffer, delta_x);
+    atomic_add(&data->y_buffer, delta_y);
+
+    int scaled_x_movement = (int)(delta_x * scaling_factor);
+    int scaled_y_movement = (int)(delta_y * scaling_factor);
+
+    // Apply smoothing
+    int smoothed_x = (int)(smoothing_factor * scaled_x_movement + (1.0f - smoothing_factor) * previous_x);
+    int smoothed_y = (int)(smoothing_factor * scaled_y_movement + (1.0f - smoothing_factor) * previous_y);
+
+    &data->previous_x = smoothed_x;
+    &data->previous_y = smoothed_y;
+
+}
+
 static void pimoroni_pim447_work_handler(struct k_work *work) {
     struct pimoroni_pim447_data *data = CONTAINER_OF(work, struct pimoroni_pim447_data, irq_work);
     const struct pimoroni_pim447_config *config = data->dev->config;
@@ -120,40 +153,35 @@ static void pimoroni_pim447_work_handler(struct k_work *work) {
     int16_t delta_x = (int16_t)buf[1] - (int16_t)buf[0]; // RIGHT - LEFT
     int16_t delta_y = (int16_t)buf[3] - (int16_t)buf[2]; // DOWN - UP
 
-    // float scaling_factor = 1.0f + ((MAX_SPEED - 1.0f) * (MAX_TIME - time_between_interrupts)) / MAX_TIME;
-
-    float scaling_factor = 1.0f; 
-    if (time_between_interrupts < MAX_TIME) {
-        // Exponential scaling calculation
-        float exponent = -2.0f * (float)time_between_interrupts / MAX_TIME; // Adjust -3.0f for desired curve
-        scaling_factor = 1.0f + (MAX_SPEED - 1.0f) * expf(exponent); 
-    }
-    /* Accumulate deltas atomically */
-    atomic_add(&data->x_buffer, delta_x);
-    atomic_add(&data->y_buffer, delta_y);
-
-    int scaled_x_movement = (int)(delta_x * scaling_factor);
-    int scaled_y_movement = (int)(delta_y * scaling_factor);
-
-    // Apply smoothing
-    int smoothed_x = (int)(SMOOTHING_FACTOR * scaled_x_movement + (1.0f - SMOOTHING_FACTOR) * previous_x);
-    int smoothed_y = (int)(SMOOTHING_FACTOR * scaled_y_movement + (1.0f - SMOOTHING_FACTOR) * previous_y);
-
-    previous_x = smoothed_x;
-    previous_y = smoothed_y;
-
     /* Report movement immediately if non-zero */
     if (delta_x != 0 || delta_y != 0) {
-        /* Report relative X movement */
-        if (delta_x != 0) {
-            if (current_mode == PIM447_MODE_MOUSE) {
+        if (current_mode == PIM447_MODE_MOUSE) {
+            pim447_process_movement(data, delta_x, delta_y, time_between_interrupts, PIM447_MOUSE_MAX_SPEED, PIM447_MOUSE_MAX_TIME, PIM447_MOUSE_SMOOTHING_FACTOR); 
+            
+            /* Report relative X movement */
+            if (delta_x != 0) {
                 ret = input_report_rel(data->dev, INPUT_REL_X, smoothed_x, true, K_NO_WAIT);
                 if (ret) {
                     LOG_ERR("Failed to report delta_x: %d", ret);
                 } else {
                     LOG_DBG("Reported delta_x: %d", smoothed_x);
                 }
-            } else if (current_mode == PIM447_MODE_SCROLL) {
+            }
+
+            /* Report relative Y movement */
+            if (delta_y != 0) {
+                ret = input_report_rel(data->dev, INPUT_REL_Y, smoothed_y, true, K_NO_WAIT);
+                if (ret) {
+                    LOG_ERR("Failed to report delta_y: %d", ret);
+                } else {
+                    LOG_DBG("Reported delta_y: %d", smoothed_y);
+                }
+            }
+        } else if (current_mode == PIM447_MODE_SCROLL) {
+            pim447_process_movement(data, delta_x, delta_y, time_between_interrupts, PIM447_SCROLL_MAX_SPEED, PIM447_SCROLL_MAX_TIME, PIM447_SCROLL_SMOOTHING_FACTOR); 
+            
+            /* Report relative X movement */
+            if (delta_x != 0) {
                 ret = input_report_rel(data->dev, INPUT_REL_WHEEL, smoothed_x, true, K_NO_WAIT);
                 if (ret) {
                     LOG_ERR("Failed to report delta_x: %d", ret);
@@ -161,19 +189,9 @@ static void pimoroni_pim447_work_handler(struct k_work *work) {
                     LOG_DBG("Reported delta_x: %d", smoothed_x);
                 }
             }
-        }
 
-        /* Report relative Y movement */
-        if (delta_y != 0) {
-            if (current_mode == PIM447_MODE_MOUSE) {
-
-            ret = input_report_rel(data->dev, INPUT_REL_Y, smoothed_y, true, K_NO_WAIT);
-                if (ret) {
-                    LOG_ERR("Failed to report delta_y: %d", ret);
-                } else {
-                    LOG_DBG("Reported delta_y: %d", smoothed_y);
-                }
-            } else if (current_mode == PIM447_MODE_SCROLL) {
+            /* Report relative Y movement */
+            if (delta_y != 0) {
                 ret = input_report_rel(data->dev, INPUT_REL_HWHEEL, smoothed_y, true, K_NO_WAIT);
                 if (ret) {
                     LOG_ERR("Failed to report delta_y: %d", ret);
