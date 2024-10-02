@@ -19,7 +19,7 @@
 LOG_MODULE_DECLARE(zmk_pimoroni_pim447, CONFIG_ZMK_LOG_LEVEL);
 
 #include "pimoroni_pim447.h"
-#include "dt-bindings/pimoroni_pim447_behaviors.h"
+#include "dt-bindings/pim447_behaviors.h"
 
 /* Extern variables */
 extern volatile uint8_t PIM447_MOUSE_MAX_SPEED;
