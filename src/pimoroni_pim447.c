@@ -286,11 +286,7 @@ static void pimoroni_pim447_work_handler(struct k_work *work) {
              LOG_ERR("Failed to set LEDs: %d", err);
          }
     }
-
-
-
 }
-
 
 /* GPIO callback function */
 static void pimoroni_pim447_gpio_callback(const struct device *port, struct gpio_callback *cb, gpio_port_pins_t pins) {
@@ -379,22 +375,6 @@ static int pimoroni_pim447_enable(const struct device *dev) {
     } else {
         LOG_INF("GPIO callback added successfully");
     }
-
-    // /* Clear any pending interrupts */
-    // uint8_t int_status;
-    // ret = i2c_reg_read_byte_dt(&config->i2c, REG_INT, &int_status);
-    // if (ret) {
-    //     LOG_ERR("Failed to read INT status register");
-    //     return ret;
-    // }
-
-    // /* Clear the MSK_INT_TRIGGERED bit */
-    // int_status &= ~MSK_INT_TRIGGERED;
-    // ret = i2c_reg_write_byte_dt(&config->i2c, REG_INT, int_status);
-    // if (ret) {
-    //     LOG_ERR("Failed to clear INT status register");
-    //     return ret;
-    // }
     
     /* Enable interrupt output on the trackball */
     ret = pimoroni_pim447_enable_interrupt(config, true);
@@ -449,18 +429,6 @@ static int pimoroni_pim447_init(const struct device *dev) {
 
     data->dev = dev;
     data->sw_pressed_prev = false;
-    // data->delta_x = 0;
-    // data->delta_y = 0;
-
-    /* Initialize the mutex */
-    // k_mutex_init(&data->data_lock);
-    // k_mutex_init(&data->i2c_lock);
-
-    // /* Initialize the periodic work handler */
-    // k_work_init_delayable(&data->periodic_work, pimoroni_pim447_periodic_work_handler);
-
-    // /* Start the periodic work */
-    // k_work_schedule(&data->periodic_work, K_MSEC(TRACKBALL_POLL_INTERVAL_MS));
 
     /* Check if the I2C device is ready */
     if (!device_is_ready(config->i2c.bus)) {
