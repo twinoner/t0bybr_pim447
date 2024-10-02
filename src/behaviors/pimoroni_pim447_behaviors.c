@@ -35,6 +35,8 @@ extern volatile float PIM447_HUE_INCREMENT_FACTOR;
 #define PIM447_SMOOTHING_FACTOR_STEP 0.1f
 #define PIM447_HUE_INCREMENT_FACTOR_STEP 0.1f
 
+struct k_mutex variable_mutex;
+
 /* Configuration and data structures */
 struct behavior_pim447_config {
     // Add any configuration parameters if needed
