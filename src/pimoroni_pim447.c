@@ -17,13 +17,19 @@
 LOG_MODULE_REGISTER(zmk_pimoroni_pim447, LOG_LEVEL_DBG);
 
 
-#define TRACKBALL_POLL_INTERVAL_MS 20 // Approximately 1/50 second
 #define HUE_INCREMENT_FACTOR 1.0f
 
 #define MAX_SPEED 15
 #define MAX_TIME 10
 #define SMOOTHING_FACTOR 0.5f // Adjust this value between 0.0 and 1.0
 
+
+enum pim447_mode {
+    PIM447_MODE_MOUSE,
+    PIM447_MODE_SCROLL
+};
+
+static enum pim447_mode current_mode = PIM447_MODE_MOUSE;
 
 /* Forward declaration of functions */
 // static void pimoroni_pim447_periodic_work_handler(struct k_work *work);
@@ -34,124 +40,6 @@ static void deactivate_automouse_layer(struct k_timer *timer);
 
 static int previous_x = 0; 
 static int previous_y = 0;
-
-
-static int16_t convert_speed(int16_t value)
-{
-    bool negative = (value < 0);
-
-    if (negative) {
-        value = -value;
-    }
-
-    switch (value) {
-        case 0:  value = 0;   break;
-        case 1:  value = 1;   break;
-        case 2:  value = 4;   break;
-        case 3:  value = 8;   break;
-        case 4:  value = 18;  break;
-        case 5:  value = 32;  break;
-        case 6:  value = 50;  break;
-        case 7:  value = 72;  break;
-        case 8:  value = 98;  break;
-        default: value = 127; break;
-    }
-
-    if (negative) {
-        value = -value;
-    }
-
-    return value;
-}
-
-// /* Periodic work handler function */
-// static void pimoroni_pim447_periodic_work_handler(struct k_work *work) {
-//     struct k_work_delayable *dwork = k_work_delayable_from_work(work);
-//     struct pimoroni_pim447_data *data = CONTAINER_OF(dwork, struct pimoroni_pim447_data, periodic_work);
-//     const struct device *dev = data->dev;
-//     int16_t delta_x, delta_y;
-//     bool sw_pressed;
-//     int err;
-
-//     k_mutex_lock(&data->data_lock, K_NO_WAIT);
-
-//     /* Copy and reset accumulated data */
-//     delta_x = data->delta_x;
-//     delta_y = data->delta_y;
-//     data->delta_x = 0;
-//     data->delta_y = 0;
-
-//     /* Get switch state */
-//     sw_pressed = data->sw_pressed;
-
-//     delta_x = convert_speed(delta_x);
-//     delta_y = convert_speed(delta_y);
-
-//     k_mutex_unlock(&data->data_lock);
-
-//     float speed = 0.0f;
-
-//     if (delta_x > 0 ||  delta_y > 0) {
-//         // Calculate movement speed
-//         speed = sqrtf((float)(delta_x * delta_x + delta_y * delta_y));
-//     }
-
-//     /* Report relative X movement */
-//     if (delta_x != 0) {
-//         err = input_report_rel(dev, INPUT_REL_X, delta_x, true, K_NO_WAIT);
-//         if (err) {
-//             LOG_ERR("Failed to report delta_x: %d", err);
-//         } else {
-//             LOG_DBG("Reported delta_x: %d", delta_x);
-
-//         }
-//     }
-
-//     /* Report relative Y movement */
-//     if (delta_y != 0) {
-//         err = input_report_rel(dev, INPUT_REL_Y, delta_y, true, K_NO_WAIT);
-//         if (err) {
-//             LOG_ERR("Failed to report delta_y: %d", err);
-//         } else {
-//             LOG_DBG("Reported delta_y: %d", delta_y);
-//         }
-//     }
-
-//     /* Report switch state if it changed */
-//     if (sw_pressed != data->sw_pressed_prev) {
-//         err = input_report_key(dev, INPUT_BTN_0, sw_pressed ? 1 : 0, true, K_NO_WAIT);
-//         if (err) {
-//             LOG_ERR("Failed to report switch state: %d", err);
-//         } else {
-//             LOG_DBG("Reported switch state: %d", sw_pressed);
-//             data->sw_pressed_prev = sw_pressed;
-//         }
-//     }
-
-//     // Update LEDs based on movement
-//     if (speed > 0) {
-//         activate_automouse_layer();
-
-//         // Update hue or brightness based on speed
-//         data->hue += speed * HUE_INCREMENT_FACTOR;
-//         if (data->hue >= 360.0f) {
-//             data->hue -= 360.0f;
-//         }
-
-//         // Convert HSV to RGBW
-//         uint8_t r, g, b, w;
-//         hsv_to_rgbw(data->hue, 1.0f, 1.0f, &r, &g, &b, &w);
-
-//         // Set the LEDs
-//         err = pimoroni_pim447_set_leds(dev, r, g, b, w);
-//         if (err) {
-//             LOG_ERR("Failed to set LEDs: %d", err);
-//         }
-//     }
-
-//     /* Reschedule the work */
-//     k_work_schedule(&data->periodic_work, K_MSEC(TRACKBALL_POLL_INTERVAL_MS)); // Schedule next execution
-// }
 
 void pim447_enable_sleep(const struct device *dev) {
     struct pimoroni_pim447_data *data = dev->data;
@@ -197,6 +85,12 @@ void pim447_disable_sleep(const struct device *dev) {
     }
 
     LOG_DBG("PIM447 sleep disabled");
+}
+
+void pim447_toggle_mode(void) {
+    current_mode = (current_mode == PIM447_MODE_MOUSE) ? PIM447_MODE_SCROLL : PIM447_MODE_MOUSE;
+    // Optional: Add logging or LED indication here to show the current mode
+    LOG_DBG("PIM447 mode switched to %s", (current_mode == PIM447_MODE_MOUSE) ? "MOUSE" : "SCROLL");
 }
 
 static void pimoroni_pim447_work_handler(struct k_work *work) {
@@ -252,21 +146,40 @@ static void pimoroni_pim447_work_handler(struct k_work *work) {
     if (delta_x != 0 || delta_y != 0) {
         /* Report relative X movement */
         if (delta_x != 0) {
-            ret = input_report_rel(data->dev, INPUT_REL_X, smoothed_x, true, K_NO_WAIT);
-            if (ret) {
-                LOG_ERR("Failed to report delta_x: %d", ret);
-            } else {
-                LOG_DBG("Reported delta_x: %d", smoothed_x);
+            if (current_mode == PIM447_MODE_MOUSE) {
+                ret = input_report_rel(data->dev, INPUT_REL_X, smoothed_x, true, K_NO_WAIT);
+                if (ret) {
+                    LOG_ERR("Failed to report delta_x: %d", ret);
+                } else {
+                    LOG_DBG("Reported delta_x: %d", smoothed_x);
+                }
+            } else if (current_mode == PIM447_MODE_SCROLL) {
+                ret = input_report_scroll(data->dev, INPUT_REL_HWHEEL, smoothed_x, true, K_NO_WAIT);
+                if (ret) {
+                    LOG_ERR("Failed to report delta_x: %d", ret);
+                } else {
+                    LOG_DBG("Reported delta_x: %d", smoothed_x);
+                }
             }
         }
 
         /* Report relative Y movement */
         if (delta_y != 0) {
+            if (current_mode == PIM447_MODE_MOUSE) {
+
             ret = input_report_rel(data->dev, INPUT_REL_Y, smoothed_y, true, K_NO_WAIT);
-            if (ret) {
-                LOG_ERR("Failed to report delta_y: %d", ret);
-            } else {
-                LOG_DBG("Reported delta_y: %d", smoothed_y);
+                if (ret) {
+                    LOG_ERR("Failed to report delta_y: %d", ret);
+                } else {
+                    LOG_DBG("Reported delta_y: %d", smoothed_y);
+                }
+            } else if (current_mode == PIM447_MODE_SCROLL) {
+                ret = input_report_scroll(data->dev, INPUT_REL_WHEEL, smoothed_y, true, K_NO_WAIT);
+                if (ret) {
+                    LOG_ERR("Failed to report delta_y: %d", ret);
+                } else {
+                    LOG_DBG("Reported delta_y: %d", smoothed_y);
+                }
             }
         }
     }
@@ -277,8 +190,9 @@ static void pimoroni_pim447_work_handler(struct k_work *work) {
     /* Report switch state if it changed */
     if (data->sw_pressed != data->sw_pressed_prev) {
         // ret = input_report_key(data->dev, INPUT_BTN_0, data->sw_pressed ? 1 : 0, true, K_NO_WAIT);
+        pim447_toggle_mode();
 
-        pim447_enable_sleep(dev);
+
         if (ret) {
             LOG_ERR("Failed to report switch state: %d", ret);
         } else {
