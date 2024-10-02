@@ -98,9 +98,14 @@ void pim447_toggle_mode(void) {
 
 // Event handler for activity state changes
 static int activity_state_changed_handler(const zmk_event_t *eh) {
-    struct pimoroni_pim447_data *data = CONTAINER_OF(work, struct pimoroni_pim447_data, irq_work);
-    const struct device *dev = data->dev;
     struct zmk_activity_state_changed *ev = as_zmk_activity_state_changed(eh);
+
+    // Get the device pointer
+    const struct device *dev = DEVICE_DT_GET(DT_NODELABEL(pimoroni_pim447));
+    if (!device_is_ready(dev)) {
+        LOG_ERR("PIM447 device not ready");
+        return -ENODEV;
+    }
 
     if (ev->state == ZMK_ACTIVITY_IDLE) {
         pim447_enable_sleep(dev);
