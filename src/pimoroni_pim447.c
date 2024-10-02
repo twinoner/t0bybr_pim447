@@ -200,9 +200,14 @@ static void pimoroni_pim447_work_handler(struct k_work *work) {
 
     /* Report switch state if it changed */
     if (data->sw_pressed != data->sw_pressed_prev) {
-        // ret = input_report_key(data->dev, INPUT_BTN_0, data->sw_pressed ? 1 : 0, true, K_NO_WAIT);
         if (data->sw_pressed) {  // Only trigger on press (transition to pressed)
-            pim447_toggle_mode(); 
+            ret = input_report_key(data->dev, INPUT_BTN_0, data->sw_pressed ? 1 : 0, true, K_NO_WAIT);
+            if (ret) {
+                LOG_ERR("Failed to report key");
+            } else {
+                LOG_DBG("Reported key");
+            }
+
             LOG_DBG("Reported switch state: %d", data->sw_pressed);
         }
 

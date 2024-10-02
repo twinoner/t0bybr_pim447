@@ -67,5 +67,7 @@ struct pimoroni_pim447_data {
 
 void pim447_enable_sleep(const struct device *dev);
 void pim447_disable_sleep(const struct device *dev);
+void pim447_toggle_mode(void);
+
 
 #endif /* PIMORONI_PIM447_H */
