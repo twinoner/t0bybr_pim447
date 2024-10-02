@@ -121,8 +121,8 @@ static void pim447_process_movement(struct pimoroni_pim447_data *data, int delta
     data->smoothed_x = (int)(smoothing_factor * scaled_x_movement + (1.0f - smoothing_factor) * previous_x);
     data->smoothed_y = (int)(smoothing_factor * scaled_y_movement + (1.0f - smoothing_factor) * previous_y);
 
-    data->previous_x = smoothed_x;
-    data->previous_y = smoothed_y;
+    data->previous_x = data->smoothed_x;
+    data->previous_y = data->smoothed_y;
 
 }
 
