@@ -2,8 +2,7 @@
 compatible: "zmk,pimoroni-pim447"
 description: Driver for the Pimoroni PIM447 Trackball
 include:
-  - name: i2c-device.yaml
-  - name: gpio-device.yaml
+  - name: i2c.yaml
 
 properties:
   int-gpios:
