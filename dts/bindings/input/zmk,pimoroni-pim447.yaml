@@ -1,0 +1,12 @@
+# SPDX-License-Identifier: MIT
+compatible: "zmk,pimoroni-pim447"
+description: Driver for the Pimoroni PIM447 Trackball
+include:
+  - name: i2c-device.yaml
+  - name: gpio-device.yaml
+
+properties:
+  int-gpios:
+    type: phandle-array
+    required: true
+    description: GPIO pin connected to the INT line of the PIM447

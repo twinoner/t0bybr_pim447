@@ -14,6 +14,23 @@
 #include "pimoroni_pim447.h"
 #include "pimoroni_pim447_led.h"  // For function declarations
 
+#include <zephyr/input/input_dev.h>
+
+static struct input_dev trackball_input_dev;
+
+static void register_input_device(void)
+{
+    input_dev_init(&trackball_input_dev);
+    input_dev_register(&trackball_input_dev);
+}
+
+static struct k_timer led_timer;
+
+static void led_timer_handler(struct k_timer *timer_id)
+{
+    gpio_pin_set_dt(&drv_data->led_act, 0);
+}
+
 LOG_MODULE_REGISTER(zmk_pimoroni_pim447, LOG_LEVEL_DBG);
 
 volatile uint8_t PIM447_MOUSE_MAX_SPEED = 25;
@@ -425,6 +442,8 @@ static int pimoroni_pim447_init(const struct device *dev) {
     struct pimoroni_pim447_data *data = dev->data;
     int ret;
 
+    register_input_device();
+
     LOG_INF("PIM447 driver initializing");
 
     data->dev = dev;
@@ -494,5 +513,14 @@ static const struct pimoroni_pim447_config pimoroni_pim447_config = {
 static struct pimoroni_pim447_data pimoroni_pim447_data;
 
 /* Device initialization macro */
-DEVICE_DT_INST_DEFINE(0, pimoroni_pim447_init, NULL, &pimoroni_pim447_data, &pimoroni_pim447_config,
-                      POST_KERNEL, CONFIG_INPUT_INIT_PRIORITY, NULL);
+// DEVICE_DT_INST_DEFINE(0, pimoroni_pim447_init, NULL, 
+//     &pimoroni_pim447_data, &pimoroni_pim447_config,
+//                       POST_KERNEL, CONFIG_INPUT_INIT_PRIORITY, NULL);
+
+DEVICE_DT_INST_DEFINE(0, pimoroni_pim447_init, NULL, 
+    &pimoroni_pim447_data_0, &pimoroni_pim447_config_0,
+    POST_KERNEL, CONFIG_KERNEL_INIT_PRIORITY_DEVICE,
+    &pimoroni_pim447_driver_api);
+
+k_timer_init(&led_timer, led_timer_handler, NULL);
+k_timer_start(&led_timer, K_MSEC(50), K_NO_WAIT);
