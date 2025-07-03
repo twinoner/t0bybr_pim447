@@ -1,7 +1,7 @@
 / {
     behaviors {
         pim447: zmk_behavior_pim447 {
-            compatible = "behavior-pim447";
+            compatible = "zmk,behavior-pim447";
             #binding-cells = <1>;
         };
     };
